@@ -213,7 +213,7 @@ def heat_badge(score: int) -> str:
     score = max(1, min(10, score))
     colour = HEAT_COLOURS[score - 1]
     label = ["Very Low","Low","Low-Mod","Moderate","Mod-High","High","High","Very High","Very High","Extreme"][score - 1]
-    return f'<span style="background:{colour};color:#fff;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700">🌡 {score}/10 — {label}</span>'
+    return f'<span style="background:{colour};color:#fff;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700">{score}/10 — {label}</span>'
 
 
 def ai_analysis_section(politician_id: int):
@@ -244,11 +244,11 @@ def ai_analysis_section(politician_id: int):
         st.caption(f"Sentiment: {a['sentiment'] or 'neutral'}")
 
     if rhetoric_flags:
-        st.markdown("**⚠️ Flagged concerns:**")
+        st.markdown("**Flagged concerns:**")
         for flag in rhetoric_flags:
             st.markdown(f"- {flag}")
     if positive_notes:
-        st.markdown("**✅ Positive notes:**")
+        st.markdown("**Positive notes:**")
         for note in positive_notes:
             st.markdown(f"- {note}")
     st.caption(f"Last analysed: {a['last_analyzed'] or '—'}")
@@ -315,8 +315,8 @@ def voting_record_section(politician_id: int, party: str, chamber: str):
         missed_df = all_divs[~all_divs["id"].isin(attended_ids)].head(20)
 
         r_tab, a_tab = st.tabs([
-            f"⚡ Rebellions ({len(reb)} found locally)",
-            f"📅 Attendance log",
+            f"Rebellions ({len(reb)} found locally)",
+            f"Attendance log",
         ])
 
         with r_tab:
@@ -357,7 +357,7 @@ def voting_record_section(politician_id: int, party: str, chamber: str):
         with a_tab:
             att_col, miss_col = st.columns(2)
             with att_col:
-                st.markdown("**✅ Recently attended**")
+                st.markdown("**Recently attended**")
                 for _, row in recent.iterrows():
                     div_name = (row["division"] or "Division")[:55]
                     try:
@@ -375,7 +375,7 @@ def voting_record_section(politician_id: int, party: str, chamber: str):
                         unsafe_allow_html=True,
                     )
             with miss_col:
-                st.markdown("**❌ Recently missed**")
+                st.markdown("**Recently missed**")
                 if missed_df.empty:
                     st.caption("No recent absences found.")
                 else:
@@ -501,7 +501,7 @@ def politician_grid(df, chamber="representatives", tab_key=""):
                     f'{row["party"]}<br>'
                     f'{location}<br>'
                     f'Att: {att} · {reb_label}<br>'
-                    f'⏳ {days_left:,}d'
+                    f'{days_left:,}d'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
@@ -512,7 +512,7 @@ def politician_grid(df, chamber="representatives", tab_key=""):
                 # Compare checkbox
                 in_compare = pid in st.session_state.compare_ids
                 if st.checkbox(
-                    "⊕ Compare" if not in_compare else "✓ In compare",
+                    "Compare" if not in_compare else "In compare",
                     key=f"cmp_{tab_key}_{pid}",
                     value=in_compare,
                 ):
@@ -629,7 +629,7 @@ st.caption(
 
 # ── Postcode filter ───────────────────────────────────────────────────────────
 st.divider()
-with st.expander("🔍 Find your local representatives by postcode", expanded=False):
+with st.expander("Find your local representatives by postcode", expanded=False):
     postcode_input = st.text_input("Enter your postcode", max_chars=4, placeholder="e.g. 3006")
     state_from_pc = None
     if postcode_input:
@@ -690,7 +690,7 @@ STATUS_COLOURS = {
 STATUS_ORDER = ["Delivered", "In Progress", "Not Started", "Broken"]
 
 GOVERNMENT_PARTY = "ALP"   # update if government changes
-STATUS_ICON = {"Delivered": "✅", "In Progress": "🔄", "Not Started": "⏳", "Broken": "❌"}
+STATUS_ICON = {"Delivered": "Done", "In Progress": "WIP", "Not Started": "Pending", "Broken": "Broken"}
 
 def _promise_list_html(promises_df, is_government: bool = True) -> str:
     """Render promises as native <details> accordion items."""
@@ -757,7 +757,7 @@ def _promise_list_html(promises_df, is_government: bool = True) -> str:
 
 if not _promise_summary.empty:
     _all_promises = query("SELECT * FROM promises ORDER BY category, promise")
-    st.subheader("📋 2025 Election Promises")
+    st.subheader("2025 Election Promises")
 
     # ── Government party: full delivery bar + expandable list ─────────────────
     _gov_data    = _promise_summary[_promise_summary["party"] == GOVERNMENT_PARTY]
@@ -776,7 +776,7 @@ if not _promise_summary.empty:
 
         _leg_parts = " &nbsp;·&nbsp; ".join(
             f'<span style="color:{STATUS_COLOURS[_s]};font-size:12px">'
-            f'{STATUS_ICON[_s]} {_gov_counts[_s]} {_s}</span>'
+            f'{_s}: {_gov_counts[_s]}</span>'
             for _s in STATUS_ORDER if _gov_counts.get(_s, 0)
         )
         st.markdown(
@@ -829,13 +829,13 @@ if n_compare > 0:
             cid = next(iter(st.session_state.compare_ids))
             cname = query("SELECT name FROM politicians WHERE id=?", (cid,))
             cname_str = cname.iloc[0]["name"] if not cname.empty else str(cid)
-            st.info(f"⚖️ **1 selected:** {cname_str} — select at least one more to compare.")
+            st.info(f"**1 selected:** {cname_str} — select at least one more to compare.")
         else:
             cnames = query(
                 f"SELECT name FROM politicians WHERE id IN ({','.join('?'*n_compare)})",
                 tuple(st.session_state.compare_ids),
             )["name"].tolist()
-            st.success(f"⚖️ **{n_compare} selected for comparison:** {', '.join(cnames)} — see the **Compare** tab.")
+            st.success(f"**{n_compare} selected for comparison:** {', '.join(cnames)} — see the **Compare** tab.")
     with clear_col:
         if st.button("Clear", key="clear_compare_btn"):
             st.session_state.compare_ids = set()
@@ -843,7 +843,7 @@ if n_compare > 0:
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 tab_reps, tab_senate, tab_divs, tab_votes, tab_compare, tab_promises = st.tabs([
-    "House of Reps", "Senate", "Divisions", "Vote Explorer", "⚖️ Compare", "📋 Promises"
+    "House of Reps", "Senate", "Divisions", "Vote Explorer", "Compare", "Promises"
 ])
 
 
@@ -865,12 +865,12 @@ def build_mp_tab(chamber: str):
 
     upd_col1, upd_col2, upd_col3 = st.columns(3)
     with upd_col1:
-        only_news = st.checkbox("📰 Has recent news", key=f"news_{chamber}")
+        only_news = st.checkbox("Has recent news", key=f"news_{chamber}")
     with upd_col2:
-        only_ai = st.checkbox("🤖 Has AI analysis", key=f"ai_{chamber}")
+        only_ai = st.checkbox("Has AI analysis", key=f"ai_{chamber}")
     with upd_col3:
         only_controversial = st.checkbox(
-            "↔ Controversial",
+            "Controversial",
             key=f"controversial_{chamber}",
             help="Both positive and controversy scores exceed 15% — bar extends meaningfully in both directions.",
         )
@@ -1191,7 +1191,7 @@ def build_compare_tab():
 
     st.caption(
         "Compare politicians side by side — like a product comparison table for democracy. "
-        "Select any combination of MPs and senators using the ⊕ Compare checkbox on their cards, "
+        "Select any combination of MPs and senators using the Compare checkbox on their cards, "
         "then view attendance, rebellions, AI sentiment scores, background, and latest news "
         "in parallel columns to spot differences at a glance."
     )
@@ -1201,7 +1201,7 @@ def build_compare_tab():
     if not cids:
         st.info(
             "No politicians selected yet.  \n"
-            "Use the **⊕ Compare** checkbox on any card in the "
+            "Use the **Compare** checkbox on any card in the "
             "House of Reps or Senate tabs to add them here."
         )
         return
@@ -1327,7 +1327,7 @@ def build_compare_tab():
             if heat > 0 or pos > 0:
                 st.markdown(
                     f'<div style="font-size:11px;color:#888">'
-                    f'🔴 Controversy: {heat}/10 &nbsp; 🟢 Positive: {pos}/10</div>',
+                    f'Controversy: {heat}/10 &nbsp; Positive: {pos}/10</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -1360,7 +1360,7 @@ def build_compare_tab():
             # Remove from compare
             st.divider()
             if st.button(
-                f"✕ Remove",
+                f"Remove",
                 key=f"rm_cmp_{int(row['id'])}",
                 help=f"Remove {row['name']} from comparison",
             ):
@@ -1423,8 +1423,7 @@ def build_promises_tab():
                 for s in STATUS_ORDER:
                     n = counts.get(s, 0)
                     if n:
-                        icon = {"Delivered": "✅", "In Progress": "🔄",
-                                "Not Started": "⏳", "Broken": "❌"}.get(s, "")
+                        icon = ""
                         bar_w = round(100 * n / total)
                         st.markdown(
                             f'<div style="display:flex;align-items:center;gap:6px;margin:3px 0">'
