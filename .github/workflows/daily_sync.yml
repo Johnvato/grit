@@ -23,6 +23,9 @@ jobs:
       - name: Rebuild schema (idempotent)
         run: python build_schema.py
 
+      - name: Import curated profiles
+        run: python import_profiles.py
+
       - name: Run sync script
         env:
           TVFY_API_KEY: ${{ secrets.TVFY_API_KEY }}

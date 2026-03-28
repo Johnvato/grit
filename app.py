@@ -7,10 +7,15 @@ st.set_page_config(page_title="Project GRIT", layout="wide")
 
 DB = "grit_cache.db"
 
-# Approximate next federal election — update to exact date once announced
 ELECTION_DATE_APPROX = True
-NEXT_ELECTION = datetime.date(2028, 5, 6)   # ~first Sat in May 2028
+NEXT_ELECTION = datetime.date(2028, 5, 6)
 LAST_ELECTION = datetime.date(2025, 5, 3)
+
+RISK_COLOURS = {
+    "High":     "#e94560",
+    "Moderate": "#f5a623",
+    "Low":      "#27ae60",
+}
 
 
 @st.cache_resource
@@ -25,139 +30,260 @@ def query(sql, params=()):
     return pd.read_sql_query(sql, conn, params=params)
 
 
-def days_until(target: datetime.date) -> int:
+def days_until(target):
     return (target - datetime.date.today()).days
 
 
-def election_countdown_html() -> str:
-    days = days_until(NEXT_ELECTION)
-    years, rem = divmod(days, 365)
-    months = rem // 30
-    label = "≈ Next Federal Election" if ELECTION_DATE_APPROX else "Next Federal Election"
-    approx = " (approximate)" if ELECTION_DATE_APPROX else f" — {NEXT_ELECTION.strftime('%-d %B %Y')}"
-    return f"""
-    <div style="background:linear-gradient(90deg,#1a1a2e,#16213e);
-                border-radius:12px;padding:20px 28px;margin-bottom:24px;
-                display:flex;align-items:center;justify-content:space-between;
-                flex-wrap:wrap;gap:12px;">
-      <div>
-        <div style="color:#aaa;font-size:13px;letter-spacing:1px;text-transform:uppercase">
-          {label}
-        </div>
-        <div style="color:#e94560;font-size:36px;font-weight:700;line-height:1.1">
-          {days:,} days
-        </div>
-        <div style="color:#aaa;font-size:13px">
-          {years}y {months}m remaining{approx}
-        </div>
-      </div>
-      <div style="text-align:right">
-        <div style="color:#aaa;font-size:13px">Last election</div>
-        <div style="color:#fff;font-size:16px;font-weight:600">
-          {LAST_ELECTION.strftime('%-d %B %Y')}
-        </div>
-        <div style="color:#aaa;font-size:12px">48th Parliament</div>
-      </div>
-    </div>
-    """
+def postcode_to_state(postcode: str) -> str | None:
+    try:
+        pc = int(postcode.strip())
+    except ValueError:
+        return None
+    if 200 <= pc <= 299 or 2600 <= pc <= 2618 or 2900 <= pc <= 2920:
+        return "Australian Capital Territory"
+    if 1000 <= pc <= 1999 or 2000 <= pc <= 2599 or 2619 <= pc <= 2899 or 2921 <= pc <= 2999:
+        return "New South Wales"
+    if 3000 <= pc <= 3999 or 8000 <= pc <= 8999:
+        return "Victoria"
+    if 4000 <= pc <= 4999 or 9000 <= pc <= 9999:
+        return "Queensland"
+    if 5000 <= pc <= 5999:
+        return "South Australia"
+    if 6000 <= pc <= 6999:
+        return "Western Australia"
+    if 7000 <= pc <= 7999:
+        return "Tasmania"
+    if 800 <= pc <= 999:
+        return "Northern Territory"
+    return None
 
 
-# Responsive grid: 4 cols on desktop → 2 on mobile
+def risk_badge(risk_text: str) -> str:
+    for level, colour in RISK_COLOURS.items():
+        if level.lower() in risk_text.lower():
+            return f'<span style="background:{colour};color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">{level} Risk</span>'
+    return ""
+
+
+def profile_expander(name: str):
+    prof = query("SELECT * FROM profiles WHERE name = ?", (name,))
+    if prof.empty:
+        return
+    p = prof.iloc[0]
+
+    with st.expander("Profile & Risk Assessment"):
+        if p["employment_history"]:
+            st.markdown(f"**Employment background**  \n{p['employment_history']}")
+        if p["notes"]:
+            st.markdown(f"**Overview**  \n{p['notes']}")
+
+        cols = st.columns(2)
+        with cols[0]:
+            if p["media_positive"]:
+                st.markdown(f"**Media (+)**  \n{p['media_positive']}")
+            if p["integrity_notes"]:
+                st.markdown(f"**Integrity record**  \n{p['integrity_notes']}")
+            if p["funding_info"]:
+                st.markdown(f"**Funding**  \n{p['funding_info']}")
+        with cols[1]:
+            if p["media_negative"]:
+                st.markdown(f"**Media (−)**  \n{p['media_negative']}")
+            if p["risk_assessment"]:
+                st.markdown(
+                    f"**Risk assessment**  \n"
+                    f"{risk_badge(p['risk_assessment'])}  \n"
+                    f"{p['risk_assessment']}",
+                    unsafe_allow_html=True,
+                )
+            if p["funding_risk"]:
+                st.markdown(f"**Funding risk**  \n{p['funding_risk']}")
+        if p["media_veracity"]:
+            st.markdown(f"**Media veracity**  \n{p['media_veracity']}")
+        if p["term_end"]:
+            st.markdown(f"**Term / re-election:** {p['term_end']}")
+        if p["postal_address"]:
+            st.markdown(f"**Electorate office:** {p['postal_address']}")
+
+
+def politician_grid(df, chamber="representatives"):
+    days_left = days_until(NEXT_ELECTION)
+    cols_per_row = 4
+    for i in range(0, len(df), cols_per_row):
+        cols = st.columns(cols_per_row, gap="small")
+        for j, col in enumerate(cols):
+            idx = i + j
+            if idx >= len(df):
+                break
+            row = df.iloc[idx]
+            with col:
+                if row.get("photo_url"):
+                    st.image(row["photo_url"], width=90)
+                st.markdown(f"**{row['name']}**")
+                location = row.get("state") or row.get("electorate", "")
+                st.caption(
+                    f"{row['party']}  \n"
+                    f"{location}  \n"
+                    f"Attendance: {row.get('attendance_%', '—')}  \n"
+                    f"Rebellions: {int(row['rebellions'])}  \n"
+                    f"⏳ {days_left:,}d"
+                )
+                profile_expander(row["name"])
+
+
+# ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@media (max-width: 768px) {
-  [data-testid="stColumn"] {
-    width: calc(50% - 1rem) !important;
-    flex: 1 1 calc(50% - 1rem) !important;
-    min-width: calc(50% - 1rem) !important;
+/* Mobile: 2-column grid */
+@media screen and (max-width: 640px) {
+  [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+    min-width: 45% !important;
+    max-width: 50% !important;
+    flex: 1 1 45% !important;
   }
 }
+/* Tighten card padding */
+[data-testid="stColumn"] { padding: 4px !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # ── Header ────────────────────────────────────────────────────────────────────
 st.title("Project GRIT: Truth Engine")
-st.caption("Tracking Australian MPs — rhetoric vs. reality.")
-st.markdown(election_countdown_html(), unsafe_allow_html=True)
+st.caption("Tracking Australian politicians — rhetoric vs. reality.")
 
 days_left = days_until(NEXT_ELECTION)
-mp_mandate_pct = round(
-    100 * (1 - days_left / (NEXT_ELECTION - LAST_ELECTION).days), 1
-)
-st.progress(mp_mandate_pct / 100, text=f"Mandate elapsed: {mp_mandate_pct}%")
+approx_label = "≈ " if ELECTION_DATE_APPROX else ""
+mandate_pct = round(100 * (1 - days_left / (NEXT_ELECTION - LAST_ELECTION).days), 1)
+
+col_a, col_b = st.columns([3, 1])
+with col_a:
+    st.markdown(
+        f"### {approx_label}Next Federal Election: **{days_left:,} days** away",
+    )
+    st.progress(mandate_pct / 100, text=f"Mandate elapsed: {mandate_pct}%")
+with col_b:
+    st.metric("Last election", LAST_ELECTION.strftime("%-d %b %Y"))
+
+# ── Postcode filter ───────────────────────────────────────────────────────────
+st.divider()
+with st.expander("🔍 Find your local representatives by postcode", expanded=False):
+    postcode_input = st.text_input("Enter your postcode", max_chars=4, placeholder="e.g. 3006")
+    state_from_pc = None
+    if postcode_input:
+        state_from_pc = postcode_to_state(postcode_input)
+        if state_from_pc:
+            st.success(f"**{postcode_input}** → {state_from_pc}")
+            senators_for_state = query(
+                "SELECT name, party, electorate FROM politicians WHERE chamber='senate' AND state=? ORDER BY name",
+                (state_from_pc,)
+            )
+            if not senators_for_state.empty:
+                st.markdown(f"**Your senators ({state_from_pc}):**")
+                for _, s in senators_for_state.iterrows():
+                    st.markdown(f"- {s['name']} *(_{s['party']}_)*")
+            st.markdown(
+                f"**Find your House of Reps MP:**  \n"
+                f"[Search AEC electorate finder →](https://electorate.aec.gov.au/)"
+            )
+        else:
+            st.warning("Postcode not recognised. Check and try again.")
 
 st.divider()
 
-tab_mps, tab_divisions, tab_votes = st.tabs(["MPs", "Recent Divisions", "Vote Explorer"])
+# ── Tabs ──────────────────────────────────────────────────────────────────────
+tab_reps, tab_senate, tab_divs, tab_votes = st.tabs([
+    "House of Reps", "Senate", "Divisions", "Vote Explorer"
+])
 
-# ── MPs tab ───────────────────────────────────────────────────────────────────
-with tab_mps:
-    st.subheader("House of Representatives")
 
-    parties = query("SELECT DISTINCT party FROM politicians ORDER BY party")["party"].tolist()
-    selected_party = st.selectbox("Filter by party", ["All"] + parties)
+def build_mp_tab(chamber: str):
+    parties = query(
+        "SELECT DISTINCT party FROM politicians WHERE chamber=? ORDER BY party",
+        (chamber,)
+    )["party"].tolist()
+    selected_party = st.selectbox("Filter by party", ["All"] + parties, key=f"party_{chamber}")
 
     if selected_party == "All":
         mps = query("""
-            SELECT id, name, party, electorate, photo_url,
+            SELECT id, name, party, electorate, state, photo_url,
                    votes_attended, votes_possible, rebellions
-            FROM politicians ORDER BY name
-        """)
+            FROM politicians WHERE chamber=? ORDER BY name
+        """, (chamber,))
     else:
         mps = query("""
-            SELECT id, name, party, electorate, photo_url,
+            SELECT id, name, party, electorate, state, photo_url,
                    votes_attended, votes_possible, rebellions
-            FROM politicians WHERE party = ? ORDER BY name
-        """, (selected_party,))
+            FROM politicians WHERE chamber=? AND party=? ORDER BY name
+        """, (chamber, selected_party))
 
     if mps.empty:
         st.info("No data yet. Run: python sync_data.py")
-    else:
-        mps["attendance_%"] = mps.apply(
+        return
+
+    mps["attendance_%"] = mps.apply(
+        lambda r: f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
+        if r["votes_possible"] > 0 else "—",
+        axis=1,
+    )
+    if state_from_pc and chamber == "senate":
+        mps = mps[mps["state"] == state_from_pc]
+
+    politician_grid(mps, chamber)
+    st.caption(f"{len(mps)} shown.")
+
+
+# ── House of Reps ─────────────────────────────────────────────────────────────
+with tab_reps:
+    st.subheader("House of Representatives")
+    search = st.text_input("Search by name or electorate", key="reps_search")
+    if search:
+        reps_df = query("""
+            SELECT id, name, party, electorate, state, photo_url,
+                   votes_attended, votes_possible, rebellions
+            FROM politicians
+            WHERE chamber='representatives'
+              AND (LOWER(name) LIKE ? OR LOWER(electorate) LIKE ?)
+            ORDER BY name
+        """, (f"%{search.lower()}%", f"%{search.lower()}%"))
+        reps_df["attendance_%"] = reps_df.apply(
             lambda r: f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
-            if r["votes_possible"] > 0 else "—",
-            axis=1,
-        )
+            if r["votes_possible"] > 0 else "—", axis=1)
+        politician_grid(reps_df)
+        st.caption(f"{len(reps_df)} shown.")
+    else:
+        build_mp_tab("representatives")
 
-        cols_per_row = 4
-        for i in range(0, len(mps), cols_per_row):
-            cols = st.columns(cols_per_row)
-            for j, col in enumerate(cols):
-                idx = i + j
-                if idx >= len(mps):
-                    break
-                row = mps.iloc[idx]
-                with col:
-                    if row["photo_url"]:
-                        st.image(row["photo_url"], width=110)
-                    st.markdown(f"**{row['name']}**")
-                    st.caption(
-                        f"{row['party']}  \n"
-                        f"{row['electorate']}  \n"
-                        f"Attendance: {row['attendance_%']}  \n"
-                        f"Rebellions: {int(row['rebellions'])}  \n"
-                        f"⏳ {days_left:,} days to election"
-                    )
+# ── Senate ────────────────────────────────────────────────────────────────────
+with tab_senate:
+    st.subheader("Senate")
+    build_mp_tab("senate")
 
-        st.caption(f"{len(mps)} members shown.")
+# ── Divisions ─────────────────────────────────────────────────────────────────
+with tab_divs:
+    st.subheader("Recent Divisions")
 
-# ── Divisions tab ─────────────────────────────────────────────────────────────
-with tab_divisions:
-    st.subheader("Recent Divisions (Votes)")
+    house_filter = st.radio(
+        "Chamber", ["All", "Representatives", "Senate"], horizontal=True
+    )
+    house_map = {"All": None, "Representatives": "representatives", "Senate": "senate"}
+    hf = house_map[house_filter]
 
-    divs = query("""
-        SELECT d.id, d.date, d.name, d.aye_votes, d.no_votes,
-               d.rebellions, d.summary
-        FROM divisions d
-        ORDER BY d.date DESC, d.number DESC
-        LIMIT 100
-    """)
+    if hf:
+        divs = query("""
+            SELECT id, date, house, name, aye_votes, no_votes, rebellions, summary
+            FROM divisions WHERE house=?
+            ORDER BY date DESC, number DESC LIMIT 100
+        """, (hf,))
+    else:
+        divs = query("""
+            SELECT id, date, house, name, aye_votes, no_votes, rebellions, summary
+            FROM divisions ORDER BY date DESC, number DESC LIMIT 100
+        """)
 
     if divs.empty:
-        st.info("No division data yet. Run: python sync_data.py")
+        st.info("No division data yet.")
     else:
         event = st.dataframe(
-            divs[["date", "name", "aye_votes", "no_votes", "rebellions"]],
+            divs[["date", "house", "name", "aye_votes", "no_votes", "rebellions"]],
             use_container_width=True,
             hide_index=True,
             on_select="rerun",
@@ -165,24 +291,19 @@ with tab_divisions:
         )
 
         selected_rows = event.selection.rows if event.selection else []
-        if selected_rows:
-            row = divs.iloc[selected_rows[0]]
-        else:
-            row = divs.iloc[0]
+        row = divs.iloc[selected_rows[0]] if selected_rows else divs.iloc[0]
 
-        st.markdown("---")
+        st.divider()
         st.subheader(row["name"])
-        st.caption(f"Date: {row['date']}")
+        st.caption(f"{row['house'].title()} — {row['date']}")
 
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Aye", int(row["aye_votes"]))
-        col2.metric("No", int(row["no_votes"]))
-        col3.metric("Rebellions", int(row["rebellions"]))
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Aye", int(row["aye_votes"]))
+        c2.metric("No", int(row["no_votes"]))
+        c3.metric("Rebellions", int(row["rebellions"]))
 
-        # Linked bills
         bills = query("""
-            SELECT b.id, b.title, b.url
-            FROM bills b
+            SELECT b.title, b.url FROM bills b
             JOIN division_bills db ON db.bill_id = b.id
             WHERE db.division_id = ?
         """, (int(row["id"]),))
@@ -191,27 +312,27 @@ with tab_divisions:
             st.markdown("**Linked legislation:**")
             for _, bill in bills.iterrows():
                 if bill["url"]:
-                    st.markdown(f"- [{bill['title'] or bill['id']}]({bill['url']})")
+                    st.markdown(f"- [{bill['title'] or 'Bill'}]({bill['url']})")
                 else:
-                    st.markdown(f"- {bill['title'] or bill['id']}")
+                    st.markdown(f"- {bill['title']}")
 
         if row["summary"]:
             st.markdown("**Summary:**")
             st.markdown(row["summary"])
 
-# ── Vote Explorer tab ─────────────────────────────────────────────────────────
+# ── Vote Explorer ─────────────────────────────────────────────────────────────
 with tab_votes:
-    st.subheader("How did each MP vote?")
+    st.subheader("How did each politician vote?")
 
     mp_names = query("SELECT name FROM politicians ORDER BY name")["name"].tolist()
     if not mp_names:
-        st.info("No data yet. Run: python sync_data.py")
+        st.info("No data yet.")
     else:
-        selected_mp = st.selectbox("Select an MP", mp_names)
-
+        selected_mp = st.selectbox("Select a politician", mp_names)
         mp_row = query(
-            "SELECT id, photo_url, party, electorate, rebellions, votes_attended, votes_possible "
-            "FROM politicians WHERE name = ?", (selected_mp,)
+            "SELECT id, photo_url, party, electorate, state, chamber, "
+            "rebellions, votes_attended, votes_possible FROM politicians WHERE name=?",
+            (selected_mp,)
         )
         if not mp_row.empty:
             r = mp_row.iloc[0]
@@ -223,7 +344,9 @@ with tab_votes:
                     st.image(r["photo_url"], width=120)
             with info_col:
                 st.markdown(f"### {selected_mp}")
-                st.caption(f"{r['party']} — {r['electorate']}")
+                chamber_label = "Senator" if r["chamber"] == "senate" else "MP"
+                location = r["state"] or r["electorate"]
+                st.caption(f"{chamber_label} — {r['party']} — {location}")
                 attendance = (
                     f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
                     if r["votes_possible"] > 0 else "—"
@@ -232,22 +355,22 @@ with tab_votes:
                 m1.metric("Attendance", attendance)
                 m2.metric("Rebellions", int(r["rebellions"]))
                 m3.metric("Days to election", f"{days_left:,}")
-                m4.metric("Mandate elapsed", f"{mp_mandate_pct}%")
+                m4.metric("Mandate elapsed", f"{mandate_pct}%")
+
+            profile_expander(selected_mp)
 
             mp_votes = query("""
-                SELECT d.date, d.name AS division, v.vote
-                FROM votes v
-                JOIN divisions d ON d.id = v.division_id
-                WHERE v.politician_id = ?
-                ORDER BY d.date DESC
+                SELECT d.date, d.name AS division, d.house, v.vote
+                FROM votes v JOIN divisions d ON d.id = v.division_id
+                WHERE v.politician_id = ? ORDER BY d.date DESC
             """, (mp_id,))
 
             if mp_votes.empty:
-                st.info("No vote records for this MP yet.")
+                st.info("No vote records yet.")
             else:
                 aye = (mp_votes["vote"] == "aye").sum()
                 no  = (mp_votes["vote"] == "no").sum()
                 c1, c2 = st.columns(2)
-                c1.metric("Aye votes", aye)
-                c2.metric("No votes", no)
+                c1.metric("Aye", aye)
+                c2.metric("No", no)
                 st.dataframe(mp_votes, use_container_width=True, hide_index=True)

@@ -46,42 +46,65 @@ def sync_politicians(conn):
     print("  Fetching people from They Vote For You...")
     people = tvfy_get("people.json")
 
-    # Each person object has a nested latest_member with the actual fields
-    reps = [
-        p for p in people
-        if p.get("latest_member", {}).get("house") == "representatives"
-    ]
-    print(f"  Found {len(reps)} House of Representatives members.")
+    reps = [p for p in people if p.get("latest_member", {}).get("house") == "representatives"]
+    senators = [p for p in people if p.get("latest_member", {}).get("house") == "senate"]
+    print(f"  Found {len(reps)} representatives, {len(senators)} senators.")
 
-    for person in reps:
+    for person in reps + senators:
         m = person.get("latest_member", {})
         name_obj = m.get("name", {})
         full_name = f"{name_obj.get('first', '')} {name_obj.get('last', '')}".strip()
+        house = m.get("house", "")
+        electorate = m.get("electorate", "")
+        # For senators, electorate field IS the state name
+        state = electorate if house == "senate" else _electorate_to_state(electorate)
         photo_url = f"https://www.openaustralia.org.au/images/mpsL/{person['id']}.jpg"
         cursor.execute('''
             INSERT OR REPLACE INTO politicians
-                (id, name, party, electorate, chamber, photo_url, last_synced)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (id, name, party, electorate, state, chamber, photo_url, last_synced)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             person["id"],
             full_name,
             m.get("party", ""),
-            m.get("electorate", ""),
-            "representatives",
+            electorate,
+            state,
+            house,
             photo_url,
             today,
         ))
 
     conn.commit()
-    print(f"  Synced {len(reps)} politicians.")
+    print(f"  Synced {len(reps) + len(senators)} politicians.")
+
+
+# Approximate state from electorate name for House of Reps members
+_STATE_ELECTORATES = {
+    "New South Wales": ["nsw", "new south wales"],
+    "Victoria": ["vic", "victoria"],
+    "Queensland": ["qld", "queensland"],
+    "Western Australia": ["wa", "western australia"],
+    "South Australia": ["sa", "south australia"],
+    "Tasmania": ["tas", "tasmania"],
+    "Australian Capital Territory": ["act", "australian capital territory"],
+    "Northern Territory": ["nt", "northern territory"],
+}
+
+def _electorate_to_state(electorate: str) -> str:
+    """Best-effort state from electorate name — not perfect but useful."""
+    el = electorate.lower()
+    for state, keywords in _STATE_ELECTORATES.items():
+        if any(k in el for k in keywords):
+            return state
+    return ""
 
 
 def sync_politician_detail(conn):
-    """Pull rebellion/attendance stats for each rep."""
+    """Pull rebellion/attendance stats for all politicians."""
     cursor = conn.cursor()
     today = datetime.date.today().isoformat()
 
-    cursor.execute("SELECT id FROM politicians WHERE chamber = 'representatives'")
+    cursor.execute("SELECT id FROM politicians")
     ids = [row[0] for row in cursor.fetchall()]
     print(f"  Fetching detail for {len(ids)} politicians...")
 
@@ -111,19 +134,23 @@ def sync_politician_detail(conn):
 
 
 def sync_divisions(conn, days_back=30):
-    """Pull divisions (votes) for the House of Representatives."""
+    """Pull divisions (votes) for both chambers."""
     cursor = conn.cursor()
     today = datetime.date.today()
     start = (today - datetime.timedelta(days=days_back)).isoformat()
     end = today.isoformat()
 
-    print(f"  Fetching divisions from {start} to {end}...")
-    divisions = tvfy_get("divisions.json", {
-        "house": "representatives",
-        "start_date": start,
-        "end_date": end,
-    })
-    print(f"  Found {len(divisions)} divisions.")
+    all_divisions = []
+    for house in ("representatives", "senate"):
+        print(f"  Fetching {house} divisions from {start} to {end}...")
+        divs = tvfy_get("divisions.json", {
+            "house": house,
+            "start_date": start,
+            "end_date": end,
+        })
+        all_divisions.extend(divs)
+    divisions = all_divisions
+    print(f"  Found {len(divisions)} divisions total.")
 
     for div in divisions:
         cursor.execute('''

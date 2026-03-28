@@ -11,6 +11,7 @@ def init_db():
             name        TEXT NOT NULL,
             party       TEXT,
             electorate  TEXT,
+            state       TEXT,
             chamber     TEXT,
             photo_url   TEXT,
             rebellions  INTEGER DEFAULT 0,
@@ -20,10 +21,26 @@ def init_db():
         )
     ''')
 
-    # Migrate existing DBs that predate the photo_url column
-    existing = [r[1] for r in cursor.execute("PRAGMA table_info(politicians)").fetchall()]
-    if "photo_url" not in existing:
-        cursor.execute("ALTER TABLE politicians ADD COLUMN photo_url TEXT")
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS profiles (
+            name                TEXT PRIMARY KEY,
+            position_label      TEXT,
+            political_spectrum  TEXT,
+            notes               TEXT,
+            employment_history  TEXT,
+            media_positive      TEXT,
+            media_negative      TEXT,
+            integrity_notes     TEXT,
+            media_veracity      TEXT,
+            risk_assessment     TEXT,
+            funding_info        TEXT,
+            funding_transparency TEXT,
+            funding_risk        TEXT,
+            active_since        TEXT,
+            term_end            TEXT,
+            postal_address      TEXT
+        )
+    ''')
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS divisions (
@@ -79,6 +96,15 @@ def init_db():
             FOREIGN KEY (mp_id) REFERENCES politicians(id)
         )
     ''')
+
+    # Safe migrations for existing DBs
+    existing_cols = [r[1] for r in cursor.execute("PRAGMA table_info(politicians)").fetchall()]
+    for col, defn in [
+        ("photo_url", "TEXT"),
+        ("state",     "TEXT"),
+    ]:
+        if col not in existing_cols:
+            cursor.execute(f"ALTER TABLE politicians ADD COLUMN {col} {defn}")
 
     conn.commit()
     conn.close()
