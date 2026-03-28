@@ -689,41 +689,103 @@ STATUS_COLOURS = {
 }
 STATUS_ORDER = ["Delivered", "In Progress", "Not Started", "Broken"]
 
+GOVERNMENT_PARTY = "ALP"   # update if government changes
+STATUS_ICON = {"Delivered": "✅", "In Progress": "🔄", "Not Started": "⏳", "Broken": "❌"}
+
+def _promise_list_html(promises_df) -> str:
+    """Render promises as native <details> accordion items — no Streamlit state needed."""
+    html = ""
+    for _, p in promises_df.iterrows():
+        colour = STATUS_COLOURS.get(p["status"], "#555")
+        icon   = STATUS_ICON.get(p["status"], "")
+        badge  = (
+            f'<span style="background:{colour};color:#fff;'
+            f'padding:1px 8px;border-radius:8px;font-size:11px;font-weight:600;'
+            f'white-space:nowrap;margin-right:6px">{icon} {p["status"]}</span>'
+        )
+        source = (
+            f'<a href="{p["source_url"]}" target="_blank" '
+            f'style="color:#3498db;font-size:11px">Source ↗</a>'
+            if p.get("source_url") else ""
+        )
+        evidence = (
+            f'<div style="font-size:12px;color:#aaa;margin:4px 0">{p["evidence"]}</div>'
+            if p.get("evidence") else ""
+        )
+        html += (
+            f'<details style="border-left:3px solid {colour};'
+            f'padding:6px 10px;margin:5px 0;'
+            f'background:rgba(255,255,255,0.03);border-radius:0 4px 4px 0;cursor:pointer">'
+            f'<summary style="list-style:none;font-size:13px;display:flex;'
+            f'align-items:flex-start;gap:6px;flex-wrap:wrap">'
+            f'{badge}<span>{p["promise"]}</span></summary>'
+            f'{evidence}{source}'
+            f'</details>'
+        )
+    return html
+
 if not _promise_summary.empty:
+    _all_promises = query("SELECT * FROM promises ORDER BY category, promise")
     st.subheader("📋 2025 Election Promises")
-    _parties = sorted(_promise_summary["party"].unique())
-    _pcols = st.columns(len(_parties))
-    for _col, _party in zip(_pcols, _parties):
-        _pdata = _promise_summary[_promise_summary["party"] == _party]
-        _counts = {r["status"]: r["n"] for _, r in _pdata.iterrows()}
-        _total = sum(_counts.values())
-        _delivered = _counts.get("Delivered", 0)
-        with _col:
-            st.markdown(f"**{_party}**")
-            # Stacked bar segments
-            _bar_html = '<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin:4px 0 6px">'
-            for _s in STATUS_ORDER:
-                _n = _counts.get(_s, 0)
-                if _n:
-                    _pct = round(100 * _n / _total)
-                    _bar_html += (
-                        f'<div title="{_s}: {_n}" '
-                        f'style="width:{_pct}%;background:{STATUS_COLOURS[_s]}"></div>'
-                    )
-            _bar_html += "</div>"
-            st.markdown(_bar_html, unsafe_allow_html=True)
-            # Mini legend counts
-            _leg = " · ".join(
-                f'<span style="color:{STATUS_COLOURS[_s]};font-size:11px">'
-                f'{"✅" if _s=="Delivered" else "🔄" if _s=="In Progress" else "⏳" if _s=="Not Started" else "❌"}'
-                f' {_counts.get(_s,0)}</span>'
-                for _s in STATUS_ORDER if _counts.get(_s, 0)
-            )
-            st.markdown(_leg, unsafe_allow_html=True)
-            st.caption(
-                f"{_delivered}/{_total} delivered · "
-                f"[See all →](#promises-tab)"
-            )
+
+    # ── Government party: full delivery bar + expandable list ─────────────────
+    _gov_data    = _promise_summary[_promise_summary["party"] == GOVERNMENT_PARTY]
+    _gov_counts  = {r["status"]: r["n"] for _, r in _gov_data.iterrows()}
+    _gov_total   = sum(_gov_counts.values())
+    _gov_delivered = _gov_counts.get("Delivered", 0)
+
+    if _gov_total:
+        _bar_html = '<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin:6px 0">'
+        for _s in STATUS_ORDER:
+            _n = _gov_counts.get(_s, 0)
+            if _n:
+                _pct = round(100 * _n / _gov_total)
+                _bar_html += f'<div style="width:{_pct}%;background:{STATUS_COLOURS[_s]}"></div>'
+        _bar_html += "</div>"
+
+        _leg_parts = " &nbsp;·&nbsp; ".join(
+            f'<span style="color:{STATUS_COLOURS[_s]};font-size:12px">'
+            f'{STATUS_ICON[_s]} {_gov_counts[_s]} {_s}</span>'
+            for _s in STATUS_ORDER if _gov_counts.get(_s, 0)
+        )
+        st.markdown(
+            f'<div style="font-size:13px;font-weight:600;margin-bottom:2px">'
+            f'{GOVERNMENT_PARTY} — Government in power</div>'
+            f'{_bar_html}'
+            f'<div style="margin:4px 0 8px">{_leg_parts}</div>'
+            f'<div style="font-size:12px;color:#aaa">{_gov_delivered}/{_gov_total} promises delivered</div>',
+            unsafe_allow_html=True,
+        )
+
+        with st.expander(f"See all {_gov_total} {GOVERNMENT_PARTY} promises"):
+            _gov_promises = _all_promises[_all_promises["party"] == GOVERNMENT_PARTY]
+            for _cat in sorted(_gov_promises["category"].unique()):
+                st.markdown(f"**{_cat}**")
+                _cat_df = _gov_promises[_gov_promises["category"] == _cat]
+                st.markdown(_promise_list_html(_cat_df), unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Opposition parties: compact platform expanders (no delivery bar) ───────
+    _opp_parties = [p for p in sorted(_promise_summary["party"].unique()) if p != GOVERNMENT_PARTY]
+    if _opp_parties:
+        st.markdown(
+            '<div style="font-size:13px;color:#aaa;margin-bottom:6px">'
+            '**Opposition platforms** — what they promised if elected in 2025</div>',
+            unsafe_allow_html=True,
+        )
+        _opp_cols = st.columns(len(_opp_parties))
+        for _col, _party in zip(_opp_cols, _opp_parties):
+            _pdata  = _promise_summary[_promise_summary["party"] == _party]
+            _counts = {r["status"]: r["n"] for _, r in _pdata.iterrows()}
+            _total  = sum(_counts.values())
+            with _col:
+                with st.expander(f"{_party} — {_total} promises"):
+                    _party_promises = _all_promises[_all_promises["party"] == _party]
+                    for _cat in sorted(_party_promises["category"].unique()):
+                        st.markdown(f"**{_cat}**")
+                        _cat_df = _party_promises[_party_promises["category"] == _cat]
+                        st.markdown(_promise_list_html(_cat_df), unsafe_allow_html=True)
 
 st.divider()
 
