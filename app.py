@@ -357,7 +357,7 @@ def voting_record_section(politician_id: int, party: str, chamber: str):
                         )
 
 
-def profile_expander(name: str, politician_id: int = None):
+def profile_expander(name: str, politician_id: int = None, photo_url: str = None):
     prof = query("SELECT * FROM profiles WHERE name = ?", (name,))
     bio  = query("SELECT * FROM politician_bio WHERE politician_id = ?", (politician_id,)) if politician_id else None
     pol  = query("SELECT party, chamber FROM politicians WHERE id = ?", (politician_id,)) if politician_id else None
@@ -371,6 +371,15 @@ def profile_expander(name: str, politician_id: int = None):
         return
 
     with st.expander("Profile, News & AI Analysis"):
+        # Photo shown on mobile (hidden on desktop via .desktop-photo CSS)
+        if photo_url:
+            st.markdown(
+                f'<div class="mobile-photo">'
+                f'<img src="{photo_url}" width="100" '
+                f'style="border-radius:8px;margin-bottom:8px;object-fit:cover">'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
         # ── Wikipedia bio ────────────────────────────────────────────────────
         if has_bio and bio.iloc[0]["wikipedia_summary"]:
             b = bio.iloc[0]
@@ -441,7 +450,14 @@ def politician_grid(df, chamber="representatives"):
             row = df.iloc[idx]
             with col:
                 if row.get("photo_url"):
-                    st.image(row["photo_url"], width=90)
+                    # Wrapped in a div hidden on mobile via CSS
+                    st.markdown(
+                        f'<div class="desktop-photo">'
+                        f'<img src="{row["photo_url"]}" width="90" '
+                        f'style="border-radius:6px;object-fit:cover">'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
                 st.markdown(f"**{row['name']}**")
                 location = row.get("state") or row.get("electorate", "")
                 st.caption(
@@ -454,14 +470,21 @@ def politician_grid(df, chamber="representatives"):
                 heat = int(row.get("heat_score") or 0)
                 pos  = int(row.get("positive_score") or 0)
                 st.markdown(bipolar_bar(heat, pos, compact=True), unsafe_allow_html=True)
-                profile_expander(row["name"], int(row["id"]))
+                profile_expander(row["name"], int(row["id"]), photo_url=row.get("photo_url"))
 
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* Mobile: 2-column grid */
+/* Desktop: show grid photo, hide expander photo */
+.desktop-photo { display: block; }
+.mobile-photo  { display: none;  }
+
+/* Mobile: hide grid photo, show expander photo, 2-column grid */
 @media screen and (max-width: 640px) {
+  .desktop-photo { display: none !important; }
+  .mobile-photo  { display: block !important; }
+
   [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
     min-width: 45% !important;
     max-width: 50% !important;
@@ -826,7 +849,7 @@ with tab_votes:
                 m3.metric("Days to election", f"{days_left:,}")
                 m4.metric("Mandate elapsed", f"{mandate_pct}%")
 
-            profile_expander(selected_mp, mp_id)
+            profile_expander(selected_mp, mp_id, photo_url=r.get("photo_url"))
 
             mp_votes = query("""
                 SELECT d.date, d.name AS division, d.house, v.vote
