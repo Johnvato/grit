@@ -513,13 +513,13 @@ with tab_divs:
 
     if hf:
         divs = query("""
-            SELECT id, date, house, name, aye_votes, no_votes, rebellions, summary
+            SELECT id, date, house, name, number, aye_votes, no_votes, rebellions, summary
             FROM divisions WHERE house=?
             ORDER BY date DESC, number DESC LIMIT 100
         """, (hf,))
     else:
         divs = query("""
-            SELECT id, date, house, name, aye_votes, no_votes, rebellions, summary
+            SELECT id, date, house, name, number, aye_votes, no_votes, rebellions, summary
             FROM divisions ORDER BY date DESC, number DESC LIMIT 100
         """)
 
@@ -538,8 +538,25 @@ with tab_divs:
         row = divs.iloc[selected_rows[0]] if selected_rows else divs.iloc[0]
 
         st.divider()
-        st.subheader(row["name"])
-        st.caption(f"{row['house'].title()} — {row['date']}")
+
+        tvfy_url = (
+            f"https://theyvoteforyou.org.au/divisions"
+            f"/{row['house']}/{row['date']}/{int(row['number'])}"
+        )
+
+        title_col, link_col = st.columns([4, 1])
+        with title_col:
+            st.subheader(row["name"])
+            st.caption(f"{row['house'].title()} — {row['date']}")
+        with link_col:
+            st.markdown(
+                f'<a href="{tvfy_url}" target="_blank" style="'
+                f'display:inline-block;margin-top:18px;padding:6px 14px;'
+                f'background:#e94560;color:#fff;border-radius:6px;'
+                f'font-size:13px;font-weight:600;text-decoration:none">'
+                f'View source ↗</a>',
+                unsafe_allow_html=True,
+            )
 
         c1, c2, c3 = st.columns(3)
         c1.metric("Aye", int(row["aye_votes"]))
@@ -561,8 +578,9 @@ with tab_divs:
                     st.markdown(f"- {bill['title']}")
 
         if row["summary"]:
-            st.markdown("**Summary:**")
+            st.markdown("**Summary** *(from Hansard via They Vote For You):*")
             st.markdown(row["summary"])
+            st.caption(f"[Full division record on They Vote For You →]({tvfy_url})")
 
 # ── Vote Explorer ─────────────────────────────────────────────────────────────
 with tab_votes:
