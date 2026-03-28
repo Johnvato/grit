@@ -224,6 +224,24 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS revolving_door (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            name                TEXT    NOT NULL,
+            party               TEXT,
+            last_office         TEXT,
+            left_office_year    INTEGER,
+            post_office_role    TEXT,
+            employer            TEXT,
+            sector              TEXT,
+            conflict_summary    TEXT,
+            portfolio_overlap   TEXT,
+            cooling_off_months  INTEGER,
+            source_url          TEXT,
+            added_date          TEXT
+        )
+    ''')
+
     conn.commit()
     conn.close()
     print("Database schema initialised.")

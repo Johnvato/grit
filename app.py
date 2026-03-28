@@ -842,9 +842,10 @@ if n_compare > 0:
             st.rerun()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab_reps, tab_senate, tab_indep, tab_divs, tab_votes, tab_compare, tab_promises, tab_bills = st.tabs([
+(tab_reps, tab_senate, tab_indep, tab_divs, tab_votes,
+ tab_compare, tab_promises, tab_bills, tab_revolving) = st.tabs([
     "House of Reps", "Senate", "Independents", "Divisions", "Vote Explorer",
-    "Compare", "Promises", "Fine Print",
+    "Compare", "Promises", "Fine Print", "Revolving Door",
 ])
 
 
@@ -1679,3 +1680,157 @@ def build_fine_print_tab():
 
 with tab_bills:
     build_fine_print_tab()
+
+# ── Revolving Door ─────────────────────────────────────────────────────────────
+SECTOR_COLOURS = {
+    "Defence / Consulting":        "#e94560",
+    "Defence / Aerospace":         "#e94560",
+    "Mining / Oil & Gas":          "#e67e22",
+    "Mining / Resources":          "#e67e22",
+    "Mining / Coal":               "#e67e22",
+    "Foreign Investment / Infrastructure": "#8e24aa",
+    "Foreign Aid / Development":   "#8e24aa",
+    "Telecommunications / Energy": "#8e24aa",
+    "Finance / International Trade": "#3498db",
+    "Banking / Finance":           "#3498db",
+    "Media / Finance":             "#3498db",
+    "Consulting / Insurance":      "#3498db",
+}
+
+def build_revolving_door_tab():
+    st.subheader("The Revolving Door")
+    st.caption(
+        "When politicians leave office and immediately take jobs in industries they regulated, "
+        "it raises a fundamental question: were their decisions in office influenced by the "
+        "prospect of future employment? Australia has no mandatory cooling-off period for "
+        "federal ministers — unlike the UK (2 years), Canada (2 years), or the US (1–2 years). "
+        "This tab documents cases where the post-politics career path suggests the door between "
+        "government and industry swings both ways."
+    )
+
+    cases = query("SELECT * FROM revolving_door ORDER BY left_office_year DESC, name")
+    if cases.empty:
+        st.info("No data yet. Run: python3 seed_revolving_door.py")
+        return
+
+    # ── Filters ────────────────────────────────────────────────────────────────
+    f1, f2 = st.columns(2)
+    with f1:
+        parties = ["All"] + sorted(cases["party"].unique().tolist())
+        sel_party = st.selectbox("Party", parties, key="rd_party")
+    with f2:
+        sectors = ["All"] + sorted(cases["sector"].unique().tolist())
+        sel_sector = st.selectbox("Sector", sectors, key="rd_sector")
+
+    if sel_party != "All":
+        cases = cases[cases["party"] == sel_party]
+    if sel_sector != "All":
+        cases = cases[cases["sector"] == sel_sector]
+
+    st.caption(f"{len(cases)} case{'s' if len(cases) != 1 else ''} shown.")
+
+    # ── Stats summary ──────────────────────────────────────────────────────────
+    if not cases.empty:
+        avg_cool = cases["cooling_off_months"].mean()
+        min_cool = cases["cooling_off_months"].min()
+        max_cool = cases["cooling_off_months"].max()
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Cases", len(cases))
+        m2.metric("Avg cooling-off", f"{avg_cool:.0f} months")
+        m3.metric("Shortest", f"{min_cool} months")
+        m4.metric("Longest", f"{max_cool} months")
+
+    st.divider()
+
+    # ── Case cards ─────────────────────────────────────────────────────────────
+    for _, r in cases.iterrows():
+        colour = SECTOR_COLOURS.get(r["sector"], "#666")
+        cool = r["cooling_off_months"]
+        if cool <= 3:
+            cool_colour = "#e94560"
+            cool_label = f"{cool} months — near-immediate"
+        elif cool <= 6:
+            cool_colour = "#f5a623"
+            cool_label = f"{cool} months"
+        elif cool <= 12:
+            cool_colour = "#3498db"
+            cool_label = f"{cool} months"
+        else:
+            cool_colour = "#27ae60"
+            cool_label = f"{cool} months"
+
+        # Header card
+        st.markdown(
+            f'<div style="border-left:4px solid {colour};padding:12px 16px;'
+            f'margin:8px 0 4px;background:rgba(255,255,255,0.03);'
+            f'border-radius:0 6px 6px 0">'
+            f'<div style="display:flex;justify-content:space-between;'
+            f'align-items:flex-start;flex-wrap:wrap;gap:8px">'
+            f'<div>'
+            f'<div style="font-size:18px;font-weight:700">{r["name"]}</div>'
+            f'<div style="font-size:12px;color:#888;margin-top:2px">'
+            f'{r["party"]} — Left office {r["left_office_year"]}</div>'
+            f'</div>'
+            f'<div style="text-align:right">'
+            f'<span style="display:inline-block;font-size:11px;background:{colour};'
+            f'color:#fff;padding:2px 10px;border-radius:8px">{r["sector"]}</span>'
+            f'<div style="font-size:11px;color:{cool_colour};margin-top:4px">'
+            f'Cooling-off: {cool_label}</div>'
+            f'</div></div>'
+            # Flow diagram
+            f'<div style="margin:12px 0 4px;display:flex;align-items:center;'
+            f'gap:8px;flex-wrap:wrap">'
+            f'<div style="background:#1a3a4a;padding:6px 12px;border-radius:6px;'
+            f'font-size:12px;color:#3498db;max-width:45%">'
+            f'<strong>Public office:</strong><br>{r["last_office"]}</div>'
+            f'<div style="color:#888;font-size:18px">&rarr;</div>'
+            f'<div style="background:#3a1a1a;padding:6px 12px;border-radius:6px;'
+            f'font-size:12px;color:#e94560;max-width:45%">'
+            f'<strong>{r["post_office_role"]}:</strong><br>{r["employer"]}</div>'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        with st.expander("Full details"):
+            st.markdown("**Conflict of interest**")
+            st.markdown(r["conflict_summary"])
+
+            if r.get("portfolio_overlap"):
+                st.markdown("**Portfolio overlap**")
+                st.markdown(
+                    f'<div style="font-size:13px;border-left:3px solid {colour};'
+                    f'padding:6px 10px;margin:4px 0;color:#ccc">'
+                    f'{r["portfolio_overlap"]}</div>',
+                    unsafe_allow_html=True,
+                )
+
+            if r.get("source_url"):
+                st.markdown(f"[Read more]({r['source_url']})")
+
+        st.divider()
+
+    # ── Context section ────────────────────────────────────────────────────────
+    st.markdown("""
+**Australia's lack of cooling-off rules**
+
+Australia is one of the few advanced democracies with no mandatory cooling-off period
+for ministers moving to the private sector. The Ministerial Standards require ministers
+to not lobby government for 18 months — but there is no enforcement mechanism, no penalty
+for breach, and the standard does not prevent taking a private-sector role immediately.
+
+| Country | Cooling-off period | Enforcement |
+|---------|-------------------|-------------|
+| Australia | None (18-month lobbying guideline, unenforced) | None |
+| United Kingdom | 2 years (ACOBA reviews) | Advisory, public reporting |
+| Canada | 2 years (Conflict of Interest Act) | Legally binding |
+| United States | 1–2 years (depending on role) | Legally binding |
+| France | 3 years | Legally binding |
+
+The Centre for Public Integrity has recommended a 2-year legally enforceable cooling-off
+period for all ministers and senior advisers, with criminal penalties for breach.
+""")
+
+
+with tab_revolving:
+    build_revolving_door_tab()
