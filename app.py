@@ -5,7 +5,7 @@ import datetime
 import folium
 from streamlit_folium import st_folium
 
-st.set_page_config(page_title="Project GRIT", layout="wide")
+st.set_page_config(page_title="Polygraph", layout="wide")
 
 DB = "grit_cache.db"
 
@@ -553,21 +553,40 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.title("Project GRIT: Truth Engine")
-st.caption("Tracking Australian politicians — rhetoric vs. reality.")
+st.title("Polygraph")
+st.caption("Reality vs rhetoric in Australian politics.")
 
 days_left = days_until(NEXT_ELECTION)
 approx_label = "≈ " if ELECTION_DATE_APPROX else ""
 mandate_pct = round(100 * (1 - days_left / (NEXT_ELECTION - LAST_ELECTION).days), 1)
 
-col_a, col_b = st.columns([3, 1])
+# Countdown label: years & months normally, days-only in the final 100 days
+if days_left <= 100:
+    countdown_label = f"{days_left} days"
+else:
+    years  = days_left // 365
+    months = (days_left % 365) // 30
+    parts  = []
+    if years:
+        parts.append(f"{years}yr{'s' if years != 1 else ''}")
+    if months:
+        parts.append(f"{months}mo")
+    countdown_label = " ".join(parts) or f"{days_left}d"
+
+col_a, col_b = st.columns([1, 2])
 with col_a:
     st.markdown(
-        f"### {approx_label}Next Federal Election: **{days_left:,} days** away",
+        f'<div style="font-size:13px;color:#888;margin-bottom:2px">Last election</div>'
+        f'<div style="font-size:20px;font-weight:700">{LAST_ELECTION.strftime("%-d %b %Y")}</div>',
+        unsafe_allow_html=True,
     )
-    st.progress(mandate_pct / 100, text=f"Mandate elapsed: {mandate_pct}%")
 with col_b:
-    st.metric("Last election", LAST_ELECTION.strftime("%-d %b %Y"))
+    st.markdown(
+        f'<div style="font-size:13px;color:#888;margin-bottom:2px">{approx_label}Next federal election</div>'
+        f'<div style="font-size:20px;font-weight:700">{countdown_label} away</div>',
+        unsafe_allow_html=True,
+    )
+st.progress(mandate_pct / 100, text=f"Mandate elapsed: {mandate_pct}%")
 
 # ── Postcode filter ───────────────────────────────────────────────────────────
 st.divider()
