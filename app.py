@@ -770,11 +770,17 @@ def build_mp_tab(chamber: str):
             key=f"sort_{chamber}",
         )
 
-    upd_col1, upd_col2 = st.columns(2)
+    upd_col1, upd_col2, upd_col3 = st.columns(3)
     with upd_col1:
         only_news = st.checkbox("📰 Has recent news", key=f"news_{chamber}")
     with upd_col2:
         only_ai = st.checkbox("🤖 Has AI analysis", key=f"ai_{chamber}")
+    with upd_col3:
+        only_controversial = st.checkbox(
+            "↔ Controversial",
+            key=f"controversial_{chamber}",
+            help="Both positive and controversy scores exceed 15% — bar extends meaningfully in both directions.",
+        )
 
     mps = query("""
         SELECT p.id, p.name, p.party, p.electorate, p.state, p.photo_url,
@@ -806,6 +812,9 @@ def build_mp_tab(chamber: str):
         mps = mps[mps["has_news"] == 1]
     if only_ai:
         mps = mps[mps["has_ai"] == 1]
+    if only_controversial:
+        # Both sides of the bar must exceed 15% (score > 1.5 → integer threshold ≥ 2)
+        mps = mps[(mps["heat_score"] >= 2) & (mps["positive_score"] >= 2)]
 
     if mps.empty:
         st.info("No politicians match the current filters.")
