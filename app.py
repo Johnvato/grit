@@ -586,19 +586,16 @@ with col_b:
         f'<div style="font-size:20px;font-weight:700">{countdown_label} away</div>',
         unsafe_allow_html=True,
     )
-MANDATE_TIP = (
-    "An Australian government's term runs for up to 3 years from the election date. "
-    "This bar shows how much of the current mandate has passed — "
-    "when it hits 100% an election must be called."
-)
 st.markdown(
     f'<div style="font-size:13px;margin-bottom:4px">'
-    f'Mandate elapsed: <strong>{mandate_pct}%</strong> '
-    f'<span title="{MANDATE_TIP}" style="cursor:help;color:#888;font-size:12px">'
-    f'ⓘ</span></div>',
+    f'Mandate elapsed: <strong>{mandate_pct}%</strong></div>',
     unsafe_allow_html=True,
 )
 st.progress(mandate_pct / 100)
+st.caption(
+    "Australian governments serve up to 3 years from election day. "
+    "This bar shows how much of the current term has passed — at 100% an election must be called."
+)
 
 # ── Postcode filter ───────────────────────────────────────────────────────────
 st.divider()
