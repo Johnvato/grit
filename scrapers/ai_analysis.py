@@ -30,10 +30,11 @@ USER_PROMPT = """Analyse the following recent news headlines about {name} ({part
 
 Provide a JSON object with exactly these keys:
 - "sentiment": one of "positive", "negative", "mixed", "neutral"
-- "heat_score": integer 1-10 (1=no scrutiny, 10=major controversy/scandal)
+- "heat_score": integer 1-10 — controversy/scrutiny level (1=none, 10=major scandal). Only reflects negative coverage.
+- "positive_score": integer 1-10 — positive standing level (1=none, 10=exceptional). Only reflects genuine achievements/positive coverage. These two scores are INDEPENDENT — a politician can score high on both.
 - "summary": 2-3 sentence assessment of their current public standing
-- "rhetoric_flags": list of strings — specific concerns, inconsistencies or integrity issues in the headlines (empty list if none)
-- "positive_notes": list of strings — notable achievements or positive mentions (empty list if none)"""
+- "rhetoric_flags": list of strings — specific concerns, inconsistencies or integrity issues (empty list if none)
+- "positive_notes": list of strings — notable achievements or genuine positive mentions (empty list if none)"""
 
 
 def get_gemini_key() -> str | None:
@@ -137,8 +138,9 @@ def analyse_politician(
             int(data.get("heat_score", 1)),
             data.get("summary", ""),
             json.dumps({
-                "rhetoric_flags": data.get("rhetoric_flags", []),
-                "positive_notes": data.get("positive_notes", []),
+                "rhetoric_flags":  data.get("rhetoric_flags", []),
+                "positive_notes":  data.get("positive_notes", []),
+                "positive_score":  int(data.get("positive_score", 0)),
             }),
             today,
         ))
@@ -182,7 +184,7 @@ def analyse_politician(
                 c.execute(
                     "INSERT OR REPLACE INTO ai_analysis (politician_id, sentiment, heat_score, summary, rhetoric_flags, last_analyzed) VALUES (?,?,?,?,?,?)",
                     (politician_id, data.get("sentiment","neutral"), int(data.get("heat_score",1)),
-                     data.get("summary",""), json.dumps({"rhetoric_flags":data.get("rhetoric_flags",[]),"positive_notes":data.get("positive_notes",[])}), datetime.date.today().isoformat())
+                     data.get("summary",""), json.dumps({"rhetoric_flags":data.get("rhetoric_flags",[]),"positive_notes":data.get("positive_notes",[]),"positive_score":int(data.get("positive_score",0))}), datetime.date.today().isoformat())
                 )
                 conn.commit()
                 return True
@@ -193,7 +195,7 @@ def analyse_politician(
         return False
 
 
-def sync_all_analyses(db_path: str = "grit_cache.db"):
+def sync_all_analyses(db_path: str = "grit_cache.db", force: bool = False):
     client = get_client()
     if not client:
         print("  Gemini key not configured — skipping AI analysis.")
@@ -209,7 +211,7 @@ def sync_all_analyses(db_path: str = "grit_cache.db"):
 
     done = skipped = 0
     for pid, name, party, chamber in politicians:
-        result = analyse_politician(conn, pid, name, party or "", chamber or "")
+        result = analyse_politician(conn, pid, name, party or "", chamber or "", force=force)
         if result:
             done += 1
         else:

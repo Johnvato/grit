@@ -157,9 +157,41 @@ def electorate_card(electorate: str):
             )
 
 
-HEAT_COLOURS = ["#27ae60","#2ecc71","#f1c40f","#f39c12","#e67e22","#e74c3c","#c0392b","#922b21","#7b241c","#641e16"]
+def bipolar_bar(controversy: int, positive: int, compact: bool = False) -> str:
+    """
+    Bipolar bar: red extends LEFT (controversy), green extends RIGHT (positive).
+    Both are independent 1-10 scales. Zero on both = 'not enough information'.
+    """
+    if controversy == 0 and positive == 0:
+        return (
+            '<div style="font-size:11px;color:#666;font-style:italic;margin:4px 0">'
+            'Not enough information</div>'
+        )
+    c_pct = max(0, min(100, controversy * 10))
+    p_pct = max(0, min(100, positive * 10))
+    height = "6px" if compact else "8px"
+    font   = "10px" if compact else "11px"
+    return f"""
+<div style="margin:5px 0 2px 0">
+  <div style="display:flex;align-items:center;gap:0;height:{height};border-radius:4px;overflow:hidden;background:#1e1e2e">
+    <div style="flex:1;display:flex;justify-content:flex-end">
+      <div style="width:{c_pct}%;height:100%;background:linear-gradient(to left,#e74c3c,#922b21)"></div>
+    </div>
+    <div style="width:2px;height:140%;background:#444;flex-shrink:0"></div>
+    <div style="flex:1">
+      <div style="width:{p_pct}%;height:100%;background:linear-gradient(to right,#27ae60,#1a7a45)"></div>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:{font};color:#888;margin-top:2px">
+    <span style="color:#e74c3c">{'⚠ ' + str(controversy) + '/10' if controversy else ''}</span>
+    <span style="color:#27ae60">{'✓ ' + str(positive) + '/10' if positive else ''}</span>
+  </div>
+</div>"""
+
 
 def heat_badge(score: int) -> str:
+    """Legacy single-score badge used in the AI analysis section."""
+    HEAT_COLOURS = ["#27ae60","#2ecc71","#f1c40f","#f39c12","#e67e22","#e74c3c","#c0392b","#922b21","#7b241c","#641e16"]
     score = max(1, min(10, score))
     colour = HEAT_COLOURS[score - 1]
     label = ["Very Low","Low","Low-Mod","Moderate","Mod-High","High","High","Very High","Very High","Extreme"][score - 1]
@@ -180,12 +212,17 @@ def ai_analysis_section(politician_id: int):
     except Exception:
         rhetoric_flags, positive_notes = [], []
 
+    pos_score = flags_data.get("positive_score", 0)
+
     st.markdown("**AI Analysis** *(updated nightly)*")
+    st.markdown(
+        bipolar_bar(int(a["heat_score"] or 0), pos_score),
+        unsafe_allow_html=True,
+    )
     cols = st.columns([2, 1])
     with cols[0]:
         st.markdown(a["summary"] or "")
     with cols[1]:
-        st.markdown(heat_badge(int(a["heat_score"] or 1)), unsafe_allow_html=True)
         st.caption(f"Sentiment: {a['sentiment'] or 'neutral'}")
 
     if rhetoric_flags:
@@ -414,9 +451,9 @@ def politician_grid(df, chamber="representatives"):
                     f"Rebellions: {int(row['rebellions'])}  \n"
                     f"⏳ {days_left:,}d"
                 )
-                heat = int(row["heat_score"]) if row.get("heat_score") else 0
-                if heat > 0:
-                    st.markdown(heat_badge(heat), unsafe_allow_html=True)
+                heat = int(row.get("heat_score") or 0)
+                pos  = int(row.get("positive_score") or 0)
+                st.markdown(bipolar_bar(heat, pos, compact=True), unsafe_allow_html=True)
                 profile_expander(row["name"], int(row["id"]))
 
 
@@ -533,7 +570,8 @@ def build_mp_tab(chamber: str):
                p.votes_attended, p.votes_possible, p.rebellions,
                CASE WHEN n.politician_id IS NOT NULL THEN 1 ELSE 0 END AS has_news,
                CASE WHEN a.politician_id IS NOT NULL THEN 1 ELSE 0 END AS has_ai,
-               COALESCE(a.heat_score, 0) AS heat_score
+               COALESCE(a.heat_score, 0) AS heat_score,
+               COALESCE(a.rhetoric_flags, '{}') AS flags_json
         FROM politicians p
         LEFT JOIN (
             SELECT DISTINCT politician_id FROM politician_news
@@ -543,6 +581,11 @@ def build_mp_tab(chamber: str):
         WHERE p.chamber = ?
           AND (? = 'All' OR p.party = ?)
     """, (chamber, selected_party, selected_party))
+
+    import json as _json
+    mps["positive_score"] = mps["flags_json"].apply(
+        lambda x: _json.loads(x).get("positive_score", 0) if x and x != "{}" else 0
+    )
 
     if mps.empty:
         st.info("No data yet. Run: python sync_data.py")
@@ -605,13 +648,18 @@ with tab_reps:
                 reps_df = query(f"""
                     SELECT p.id, p.name, p.party, p.electorate, p.state, p.photo_url,
                            p.votes_attended, p.votes_possible, p.rebellions,
-                           COALESCE(a.heat_score, 0) AS heat_score
+                           COALESCE(a.heat_score, 0) AS heat_score,
+                           COALESCE(a.rhetoric_flags, '{{}}') AS flags_json
                     FROM politicians p
                     LEFT JOIN ai_analysis a ON a.politician_id = p.id
                     WHERE p.chamber='representatives'
                       AND p.electorate IN ({placeholders})
                     ORDER BY p.name
                 """, tuple(electorates))
+                import json as _json
+                reps_df["positive_score"] = reps_df["flags_json"].apply(
+                    lambda x: _json.loads(x).get("positive_score", 0) if x and x != "{}" else 0
+                )
                 st.info(
                     f"Postcode **{search.strip()}** falls in: "
                     + ", ".join(f"**{e}**" for e in sorted(electorates))
@@ -623,13 +671,18 @@ with tab_reps:
             reps_df = query("""
                 SELECT p.id, p.name, p.party, p.electorate, p.state, p.photo_url,
                        p.votes_attended, p.votes_possible, p.rebellions,
-                       COALESCE(a.heat_score, 0) AS heat_score
+                       COALESCE(a.heat_score, 0) AS heat_score,
+                       COALESCE(a.rhetoric_flags, '{}') AS flags_json
                 FROM politicians p
                 LEFT JOIN ai_analysis a ON a.politician_id = p.id
                 WHERE p.chamber='representatives'
                   AND (LOWER(p.name) LIKE ? OR LOWER(p.electorate) LIKE ?)
                 ORDER BY p.name
             """, (f"%{search.lower()}%", f"%{search.lower()}%"))
+            import json as _json
+            reps_df["positive_score"] = reps_df["flags_json"].apply(
+                lambda x: _json.loads(x).get("positive_score", 0) if x and x != "{}" else 0
+            )
 
         if not reps_df.empty:
             reps_df["attendance_%"] = reps_df.apply(
