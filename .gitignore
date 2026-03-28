@@ -3,3 +3,17 @@ venv/
 __pycache__/
 .DS_Store
 *.pyc
+# GIS binary files
+data/AUS-*/
+data/mid*/
+*.shp
+*.dbf
+*.shx
+*.prj
+*.TAB
+*.DAT
+*.MAP
+*.ID
+*.IND
+*.MID
+*.MIF
