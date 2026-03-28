@@ -415,25 +415,43 @@ def build_mp_tab(chamber: str):
     with sort_col:
         sort_by = st.selectbox(
             "Sort by",
-            ["Name (A–Z)", "Rebellions ↓", "Rebellions ↑", "Attendance ↓", "Attendance ↑"],
+            ["Name (A–Z)", "Rebellions ↓", "Rebellions ↑", "Attendance ↓", "Attendance ↑", "Heat Score ↓"],
             key=f"sort_{chamber}",
         )
 
-    if selected_party == "All":
-        mps = query("""
-            SELECT id, name, party, electorate, state, photo_url,
-                   votes_attended, votes_possible, rebellions
-            FROM politicians WHERE chamber=?
-        """, (chamber,))
-    else:
-        mps = query("""
-            SELECT id, name, party, electorate, state, photo_url,
-                   votes_attended, votes_possible, rebellions
-            FROM politicians WHERE chamber=? AND party=?
-        """, (chamber, selected_party))
+    upd_col1, upd_col2 = st.columns(2)
+    with upd_col1:
+        only_news = st.checkbox("📰 Has recent news", key=f"news_{chamber}")
+    with upd_col2:
+        only_ai = st.checkbox("🤖 Has AI analysis", key=f"ai_{chamber}")
+
+    mps = query("""
+        SELECT p.id, p.name, p.party, p.electorate, p.state, p.photo_url,
+               p.votes_attended, p.votes_possible, p.rebellions,
+               CASE WHEN n.politician_id IS NOT NULL THEN 1 ELSE 0 END AS has_news,
+               CASE WHEN a.politician_id IS NOT NULL THEN 1 ELSE 0 END AS has_ai,
+               COALESCE(a.heat_score, 0) AS heat_score
+        FROM politicians p
+        LEFT JOIN (
+            SELECT DISTINCT politician_id FROM politician_news
+            WHERE published_date >= date('now', '-14 days')
+        ) n ON n.politician_id = p.id
+        LEFT JOIN ai_analysis a ON a.politician_id = p.id
+        WHERE p.chamber = ?
+          AND (? = 'All' OR p.party = ?)
+    """, (chamber, selected_party, selected_party))
 
     if mps.empty:
         st.info("No data yet. Run: python sync_data.py")
+        return
+
+    if only_news:
+        mps = mps[mps["has_news"] == 1]
+    if only_ai:
+        mps = mps[mps["has_ai"] == 1]
+
+    if mps.empty:
+        st.info("No politicians match the current filters.")
         return
 
     mps["attendance_num"] = mps.apply(
@@ -451,6 +469,7 @@ def build_mp_tab(chamber: str):
         "Rebellions ↑":   ("rebellions", True),
         "Attendance ↓":   ("attendance_num", False),
         "Attendance ↑":   ("attendance_num", True),
+        "Heat Score ↓":   ("heat_score", False),
     }
     sort_col_name, sort_asc = sort_map[sort_by]
     mps = mps.sort_values(sort_col_name, ascending=sort_asc)
