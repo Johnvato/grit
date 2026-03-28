@@ -1,0 +1,38 @@
+---
+description: Project GRIT persistent context — user identity, naming, and repo details
+alwaysApply: true
+---
+
+# Project GRIT Context
+
+## Identity
+- GitHub username: `johnvato`
+- GitHub repo: `https://github.com/Johnvato/grit` (private)
+- Local path: `/Users/johneggleston/Desktop/grit`
+
+## Naming Convention
+- **GRIT** — formal product name (used in UI, docs, repo)
+- **Squeaky Wheel** — informal working name (used in conversation)
+
+## Stack
+- Language: Python 3.13
+- Frontend: Streamlit
+- Database: SQLite (`grit_cache.db`)
+- Automation: GitHub Actions (`.github/workflows/daily_sync.yml`)
+- Secrets: `.streamlit/secrets.toml` (local only, never committed)
+- Virtual env: `venv/` (activate with `source venv/bin/activate`)
+
+## Project Purpose
+Political integrity "Truth Engine" — tracks Australian MPs, their voting records,
+media statements, and surfaces rhetoric vs. reality conflicts.
+
+## Key Files
+- `app.py` — Streamlit frontend
+- `build_schema.py` — initialises SQLite tables (run once)
+- `sync_data.py` — nightly data sync (also run by GitHub Actions)
+- `grit_cache.db` — local database (committed to repo for portability)
+
+## DB Tables
+- `politicians` (ID, name)
+- `bills` (Bill_No, title)
+- `media` (URL, MP_ID, text)

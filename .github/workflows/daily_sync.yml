@@ -15,12 +15,17 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.13'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Rebuild schema (idempotent)
+        run: python build_schema.py
+
       - name: Run sync script
+        env:
+          TVFY_API_KEY: ${{ secrets.TVFY_API_KEY }}
         run: python sync_data.py
 
       - name: Commit updated database
@@ -28,5 +33,5 @@ jobs:
           git config --global user.name 'github-actions'
           git config --global user.email 'bot@noreply.github.com'
           git add grit_cache.db
-          git commit -m "Automated database sync" || exit 0
+          git commit -m "Automated database sync $(date -u +%Y-%m-%d)" || exit 0
           git push
