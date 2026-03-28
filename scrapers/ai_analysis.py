@@ -49,7 +49,14 @@ def get_gemini_key() -> str | None:
         return None
 
 
-MODEL = "gemini-2.5-flash"
+# Cycle through models — each has its own free-tier daily quota
+MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-flash-lite-latest",
+    "gemini-flash-latest",
+]
+_model_idx = 0
 
 
 def get_client():
@@ -98,9 +105,10 @@ def analyse_politician(
         f"- [{row[2]}] {row[0]} ({row[1]})" for row in articles
     )
 
+    global _model_idx
     try:
         response = client.models.generate_content(
-            model=MODEL,
+            model=MODELS[_model_idx % len(MODELS)],
             contents=USER_PROMPT.format(
                 name=name, party=party, chamber=chamber, headlines=headlines
             ),
@@ -138,6 +146,49 @@ def analyse_politician(
         return True
 
     except Exception as e:
+        err = str(e)
+        if "429" in err or "RESOURCE_EXHAUSTED" in err:
+            # Rotate to next model and retry once
+            _model_idx += 1
+            if _model_idx % len(MODELS) == 0:
+                print(f"    All models exhausted for today — stopping.")
+                return False
+            next_model = MODELS[_model_idx % len(MODELS)]
+            print(f"    Quota hit — switching to {next_model}")
+            try:
+                response = client.models.generate_content(
+                    model=next_model,
+                    contents=USER_PROMPT.format(
+                        name=name, party=party, chamber=chamber,
+                        headlines="\n".join(
+                            f"- [{r[2]}] {r[0]} ({r[1]})"
+                            for r in conn.cursor().execute(
+                                "SELECT headline, source, published_date FROM politician_news WHERE politician_id=? ORDER BY published_date DESC LIMIT 15",
+                                (politician_id,)
+                            ).fetchall()
+                        )
+                    ),
+                    config=genai_types.GenerateContentConfig(
+                        system_instruction=SYSTEM_PROMPT, temperature=0.2, max_output_tokens=2048,
+                    ),
+                )
+                raw = response.text.strip()
+                start, end = raw.find("{"), raw.rfind("}") + 1
+                if start != -1 and end > start:
+                    raw = raw[start:end]
+                data = json.loads(raw)
+                time.sleep(13)
+                c = conn.cursor()
+                c.execute(
+                    "INSERT OR REPLACE INTO ai_analysis (politician_id, sentiment, heat_score, summary, rhetoric_flags, last_analyzed) VALUES (?,?,?,?,?,?)",
+                    (politician_id, data.get("sentiment","neutral"), int(data.get("heat_score",1)),
+                     data.get("summary",""), json.dumps({"rhetoric_flags":data.get("rhetoric_flags",[]),"positive_notes":data.get("positive_notes",[])}), datetime.date.today().isoformat())
+                )
+                conn.commit()
+                return True
+            except Exception as e2:
+                print(f"    Analysis failed for {name} (retry): {e2}")
+                return False
         print(f"    Analysis failed for {name}: {e}")
         return False
 
