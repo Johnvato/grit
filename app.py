@@ -20,16 +20,9 @@ RISK_COLOURS = {
 }
 
 
-@st.cache_resource
-def get_conn():
-    return sqlite3.connect(DB, check_same_thread=False)
-
-
-conn = get_conn()
-
-
 def query(sql, params=()):
-    return pd.read_sql_query(sql, conn, params=params)
+    with sqlite3.connect(DB, check_same_thread=False) as _conn:
+        return pd.read_sql_query(sql, _conn, params=params)
 
 
 def days_until(target):
@@ -231,7 +224,6 @@ def news_section(politician_id: int, limit: int = 8):
 
 def voting_record_section(politician_id: int, party: str, chamber: str):
     """Rebellions + recent attendance breakdown inside the profile expander."""
-
     # ── Rebellions: votes where politician differed from party majority ──────
     rebellions_df = query("""
         SELECT d.date, d.name AS division, v.vote AS my_vote,
@@ -253,15 +245,15 @@ def voting_record_section(politician_id: int, party: str, chamber: str):
     if not rebellions_df.empty:
         reb = rebellions_df[rebellions_df["my_vote"] != rebellions_df["party_majority"]]
         recent = rebellions_df.head(30)
-        missed_df = query("""
-            SELECT d.date, d.name AS division
-            FROM divisions d
-            WHERE d.house = ?
-              AND d.id NOT IN (
-                  SELECT division_id FROM votes WHERE politician_id = ?
-              )
-            ORDER BY d.date DESC LIMIT 20
-        """, (chamber, politician_id))
+        attended_ids = set(
+            query("SELECT division_id FROM votes WHERE politician_id = ?", (politician_id,))
+            ["division_id"].tolist()
+        )
+        all_divs = query(
+            "SELECT id, date, name AS division FROM divisions WHERE house = ? ORDER BY date DESC LIMIT 50",
+            (chamber,)
+        )
+        missed_df = all_divs[~all_divs["id"].isin(attended_ids)].head(20)
 
         r_tab, a_tab = st.tabs([
             f"⚡ Rebellions ({len(reb)})",
@@ -273,10 +265,13 @@ def voting_record_section(politician_id: int, party: str, chamber: str):
                 st.caption("No rebellions detected in synced divisions.")
             else:
                 for _, row in reb.iterrows():
-                    tvfy_url = (
-                        f"https://theyvoteforyou.org.au/divisions"
-                        f"/{row['house']}/{row['date']}/{int(row['number'])}"
-                    )
+                    try:
+                        tvfy_url = (
+                            f"https://theyvoteforyou.org.au/divisions"
+                            f"/{row['house']}/{row['date']}/{int(row['number'])}"
+                        )
+                    except (ValueError, TypeError):
+                        tvfy_url = "https://theyvoteforyou.org.au/divisions"
                     st.markdown(
                         f'<div style="margin:4px 0;font-size:13px;padding:6px 10px;'
                         f'background:#1a1a2e;border-left:3px solid #e94560;border-radius:4px">'
@@ -294,14 +289,18 @@ def voting_record_section(politician_id: int, party: str, chamber: str):
             with att_col:
                 st.markdown("**✅ Recently attended**")
                 for _, row in recent.iterrows():
-                    tvfy_url = (
-                        f"https://theyvoteforyou.org.au/divisions"
-                        f"/{row['house']}/{row['date']}/{int(row['number'])}"
-                    )
+                    div_name = (row["division"] or "Division")[:55]
+                    try:
+                        tvfy_url = (
+                            f"https://theyvoteforyou.org.au/divisions"
+                            f"/{row['house']}/{row['date']}/{int(row['number'])}"
+                        )
+                        link = f'<a href="{tvfy_url}" target="_blank">{div_name}</a>'
+                    except (ValueError, TypeError):
+                        link = div_name
                     st.markdown(
                         f'<div style="font-size:12px;margin:2px 0">'
-                        f'<a href="{tvfy_url}" target="_blank">{row["division"][:55]}</a>'
-                        f'<span style="color:#aaa"> {row["date"]}</span>'
+                        f'{link}<span style="color:#aaa"> {row["date"]}</span>'
                         f'</div>',
                         unsafe_allow_html=True,
                     )
@@ -311,9 +310,10 @@ def voting_record_section(politician_id: int, party: str, chamber: str):
                     st.caption("No recent absences found.")
                 else:
                     for _, row in missed_df.iterrows():
+                        div_name = (row["division"] or "Division")[:55]
                         st.markdown(
                             f'<div style="font-size:12px;margin:2px 0;color:#aaa">'
-                            f'{row["division"][:55]}'
+                            f'{div_name}'
                             f'<span style="color:#666"> {row["date"]}</span>'
                             f'</div>',
                             unsafe_allow_html=True,
@@ -668,16 +668,21 @@ with tab_divs:
     if divs.empty:
         st.info("No division data yet.")
     else:
-        event = st.dataframe(
+        div_options = {
+            f"{r['date']} — {r['name'][:70]}": i
+            for i, r in divs.iterrows()
+        }
+        selected_label = st.selectbox(
+            "Select a division to inspect",
+            list(div_options.keys()),
+            key="div_select",
+        )
+        st.dataframe(
             divs[["date", "house", "name", "aye_votes", "no_votes", "rebellions"]],
             use_container_width=True,
             hide_index=True,
-            on_select="rerun",
-            selection_mode="single-row",
         )
-
-        selected_rows = event.selection.rows if event.selection else []
-        row = divs.iloc[selected_rows[0]] if selected_rows else divs.iloc[0]
+        row = divs.loc[div_options[selected_label]]
 
         st.divider()
 
