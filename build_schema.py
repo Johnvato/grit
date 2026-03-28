@@ -1,4 +1,7 @@
 import sqlite3
+import csv
+import io
+import requests
 
 
 def init_db():
@@ -97,6 +100,14 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS postcode_electorates (
+            postcode    TEXT,
+            electorate  TEXT,
+            PRIMARY KEY (postcode, electorate)
+        )
+    ''')
+
     # Safe migrations for existing DBs
     existing_cols = [r[1] for r in cursor.execute("PRAGMA table_info(politicians)").fetchall()]
     for col, defn in [
@@ -109,6 +120,39 @@ def init_db():
     conn.commit()
     conn.close()
     print("Database schema initialised.")
+    sync_postcode_electorates()
+
+
+def sync_postcode_electorates():
+    """Download AEC polling place data to build postcode → electorate mapping."""
+    url = "https://results.aec.gov.au/31496/Website/Downloads/GeneralPollingPlacesDownload-31496.csv"
+    try:
+        print("Syncing postcode → electorate map from AEC...")
+        r = requests.get(url, timeout=30)
+        r.raise_for_status()
+        lines = r.text.splitlines()
+        rows = list(csv.DictReader(lines[1:]))   # skip event-metadata header line
+
+        mapping = {}
+        for row in rows:
+            pc  = row.get("PremisesPostCode", "").strip()
+            div = row.get("DivisionNm", "").strip()
+            if pc and div:
+                mapping.setdefault(pc, set()).add(div)
+
+        conn = sqlite3.connect("grit_cache.db")
+        c = conn.cursor()
+        for pc, divs in mapping.items():
+            for div in divs:
+                c.execute(
+                    "INSERT OR IGNORE INTO postcode_electorates VALUES (?,?)",
+                    (pc, div)
+                )
+        conn.commit()
+        conn.close()
+        print(f"  {sum(len(v) for v in mapping.values())} postcode→electorate records loaded.")
+    except Exception as e:
+        print(f"  Warning: could not sync postcode data: {e}")
 
 
 if __name__ == "__main__":

@@ -180,10 +180,28 @@ with st.expander("🔍 Find your local representatives by postcode", expanded=Fa
                 st.markdown(f"**Your senators ({state_from_pc}):**")
                 for _, s in senators_for_state.iterrows():
                     st.markdown(f"- {s['name']} *(_{s['party']}_)*")
-            st.markdown(
-                f"**Find your House of Reps MP:**  \n"
-                f"[Search AEC electorate finder →](https://electorate.aec.gov.au/)"
-            )
+
+            electorates_for_pc = query(
+                "SELECT electorate FROM postcode_electorates WHERE postcode = ?",
+                (postcode_input.strip(),)
+            )["electorate"].tolist()
+            if electorates_for_pc:
+                st.markdown(f"**Your electorate(s):** {', '.join(f'**{e}**' for e in sorted(electorates_for_pc))}")
+                placeholders = ",".join("?" * len(electorates_for_pc))
+                local_reps = query(f"""
+                    SELECT name, party, electorate FROM politicians
+                    WHERE chamber='representatives' AND electorate IN ({placeholders})
+                    ORDER BY name
+                """, tuple(electorates_for_pc))
+                if not local_reps.empty:
+                    st.markdown("**Your House of Reps MP(s):**")
+                    for _, rep in local_reps.iterrows():
+                        st.markdown(f"- {rep['name']} *(_{rep['party']}_, {rep['electorate']})*")
+            else:
+                st.markdown(
+                    "**Find your House of Reps MP:**  \n"
+                    "[Search AEC electorate finder →](https://electorate.aec.gov.au/)"
+                )
         else:
             st.warning("Postcode not recognised. Check and try again.")
 
@@ -234,21 +252,52 @@ def build_mp_tab(chamber: str):
 # ── House of Reps ─────────────────────────────────────────────────────────────
 with tab_reps:
     st.subheader("House of Representatives")
-    search = st.text_input("Search by name or electorate", key="reps_search")
+    search = st.text_input(
+        "Search by name, electorate or postcode", key="reps_search",
+        placeholder="e.g. Melbourne, Albanese, or 3006"
+    )
     if search:
-        reps_df = query("""
-            SELECT id, name, party, electorate, state, photo_url,
-                   votes_attended, votes_possible, rebellions
-            FROM politicians
-            WHERE chamber='representatives'
-              AND (LOWER(name) LIKE ? OR LOWER(electorate) LIKE ?)
-            ORDER BY name
-        """, (f"%{search.lower()}%", f"%{search.lower()}%"))
-        reps_df["attendance_%"] = reps_df.apply(
-            lambda r: f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
-            if r["votes_possible"] > 0 else "—", axis=1)
-        politician_grid(reps_df)
-        st.caption(f"{len(reps_df)} shown.")
+        is_postcode = search.strip().isdigit() and len(search.strip()) == 4
+
+        if is_postcode:
+            electorates = query(
+                "SELECT electorate FROM postcode_electorates WHERE postcode = ?",
+                (search.strip(),)
+            )["electorate"].tolist()
+
+            if electorates:
+                placeholders = ",".join("?" * len(electorates))
+                reps_df = query(f"""
+                    SELECT id, name, party, electorate, state, photo_url,
+                           votes_attended, votes_possible, rebellions
+                    FROM politicians
+                    WHERE chamber='representatives'
+                      AND electorate IN ({placeholders})
+                    ORDER BY name
+                """, tuple(electorates))
+                st.info(
+                    f"Postcode **{search.strip()}** falls in: "
+                    + ", ".join(f"**{e}**" for e in sorted(electorates))
+                )
+            else:
+                reps_df = pd.DataFrame()
+                st.warning(f"No electorate found for postcode {search.strip()}.")
+        else:
+            reps_df = query("""
+                SELECT id, name, party, electorate, state, photo_url,
+                       votes_attended, votes_possible, rebellions
+                FROM politicians
+                WHERE chamber='representatives'
+                  AND (LOWER(name) LIKE ? OR LOWER(electorate) LIKE ?)
+                ORDER BY name
+            """, (f"%{search.lower()}%", f"%{search.lower()}%"))
+
+        if not reps_df.empty:
+            reps_df["attendance_%"] = reps_df.apply(
+                lambda r: f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
+                if r["votes_possible"] > 0 else "—", axis=1)
+            politician_grid(reps_df)
+            st.caption(f"{len(reps_df)} shown.")
     else:
         build_mp_tab("representatives")
 
