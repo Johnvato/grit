@@ -842,8 +842,8 @@ if n_compare > 0:
             st.rerun()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab_reps, tab_senate, tab_divs, tab_votes, tab_compare, tab_promises = st.tabs([
-    "House of Reps", "Senate", "Divisions", "Vote Explorer", "Compare", "Promises"
+tab_reps, tab_senate, tab_indep, tab_divs, tab_votes, tab_compare, tab_promises = st.tabs([
+    "House of Reps", "Senate", "Independents", "Divisions", "Vote Explorer", "Compare", "Promises"
 ])
 
 
@@ -1031,6 +1031,104 @@ with tab_senate:
         "particularly revealing of political alliances and deal-making."
     )
     build_mp_tab("senate")
+
+# ── Independents ───────────────────────────────────────────────────────────────
+CROSSBENCH_PARTIES = [
+    "Independent",
+    "Centre Alliance",
+    "Jacqui Lambie Network",
+    "Katter's Australian Party",
+    "Pauline Hanson's One Nation Party",
+    "United Australia Party",
+    "Australia's Voice",
+]
+
+with tab_indep:
+    st.subheader("Independents & Crossbench")
+
+    st.markdown("""
+**Why independents matter — and why voting for them is not a wasted vote.**
+
+Australia's preferential voting system means a vote for an independent is never wasted.
+If your first-choice candidate is eliminated, your vote flows to your next preference —
+so you can vote with your conscience knowing your vote still counts toward the final result.
+
+Independents and crossbenchers play an outsized role in Australian democracy. When neither
+major party holds a clear majority, crossbench MPs and senators become kingmakers —
+they negotiate directly with the government on legislation, extracting concessions
+for their communities or policy priorities that the major parties would otherwise ignore.
+
+In the Senate, minor party and independent senators routinely hold the balance of power.
+No government since 2004 has controlled the Senate outright, meaning every piece of legislation
+must be negotiated through the crossbench. This gives individual senators — sometimes
+representing fewer than 100,000 voters — direct influence over national policy.
+
+In the House of Representatives, the 2022 and 2025 elections saw a historic wave of
+"teal" independents win traditionally safe Liberal seats, particularly on platforms of
+climate action, integrity, and gender equality. These MPs have shifted the centre of
+political debate and forced both major parties to respond to issues they had previously
+sidelined.
+
+**Key advantages of independent representation:**
+
+- **No party whip** — independents vote on the merits of each bill, not on party orders.
+  Their voting record is a genuine reflection of their judgement.
+- **Constituency focus** — without party machinery to fall back on, independents succeed
+  or fail based on how well they serve their electorate.
+- **Accountability** — they cannot hide behind party talking points. Every vote,
+  every absence, every position is personally theirs.
+- **Balance of power** — even a single crossbench vote can defeat or pass legislation,
+  giving disproportionate influence to independent MPs.
+""")
+
+    st.divider()
+
+    # ── Crossbench MPs and Senators ────────────────────────────────────────────
+    import json as _json_indep
+
+    placeholders_indep = ",".join("?" * len(CROSSBENCH_PARTIES))
+    indep_df = query(f"""
+        SELECT p.id, p.name, p.party, p.electorate, p.state, p.photo_url,
+               p.chamber, p.votes_attended, p.votes_possible, p.rebellions,
+               COALESCE(a.heat_score, 0) AS heat_score,
+               COALESCE(a.rhetoric_flags, '{{}}') AS flags_json
+        FROM politicians p
+        LEFT JOIN ai_analysis a ON a.politician_id = p.id
+        WHERE p.party IN ({placeholders_indep})
+        ORDER BY p.chamber, p.name
+    """, tuple(CROSSBENCH_PARTIES))
+
+    indep_df["positive_score"] = indep_df["flags_json"].apply(
+        lambda x: _json_indep.loads(x).get("positive_score", 0) if x and x != "{}" else 0
+    )
+    indep_df["attendance_num"] = indep_df.apply(
+        lambda r: 100 * r["votes_attended"] / r["votes_possible"]
+        if r["votes_possible"] > 0 else 0, axis=1
+    )
+    indep_df["attendance_%"] = indep_df["attendance_num"].apply(
+        lambda v: f"{v:.0f}%" if v > 0 else "—"
+    )
+
+    reps_indep = indep_df[indep_df["chamber"] == "representatives"]
+    sen_indep  = indep_df[indep_df["chamber"] == "senate"]
+
+    if not reps_indep.empty:
+        st.subheader(f"House of Reps — {len(reps_indep)} crossbench members")
+        politician_grid(reps_indep, chamber="representatives", tab_key="indep_reps")
+
+    if not sen_indep.empty:
+        st.subheader(f"Senate — {len(sen_indep)} crossbench senators")
+        politician_grid(sen_indep, chamber="senate", tab_key="indep_sen")
+
+    if indep_df.empty:
+        st.info("No independents or crossbench members found in the current data.")
+
+    st.divider()
+    st.caption(
+        f"{len(indep_df)} crossbench politicians shown across both chambers. "
+        "Includes independents and minor party members outside the ALP, "
+        "Liberal Party, National Party, LNP, and Greens."
+    )
 
 # ── Divisions ─────────────────────────────────────────────────────────────────
 with tab_divs:
