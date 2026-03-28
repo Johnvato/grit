@@ -647,6 +647,59 @@ with st.expander("🔍 Find your local representatives by postcode", expanded=Fa
 
 st.divider()
 
+# ── Promise tracker summary ────────────────────────────────────────────────────
+_promise_summary = query("""
+    SELECT party, status, COUNT(*) AS n
+    FROM promises
+    GROUP BY party, status
+""")
+
+STATUS_COLOURS = {
+    "Delivered":   "#27ae60",
+    "In Progress": "#3498db",
+    "Not Started": "#555",
+    "Broken":      "#e94560",
+}
+STATUS_ORDER = ["Delivered", "In Progress", "Not Started", "Broken"]
+
+if not _promise_summary.empty:
+    st.subheader("📋 2025 Election Promises")
+    _parties = sorted(_promise_summary["party"].unique())
+    _pcols = st.columns(len(_parties))
+    for _col, _party in zip(_pcols, _parties):
+        _pdata = _promise_summary[_promise_summary["party"] == _party]
+        _counts = {r["status"]: r["n"] for _, r in _pdata.iterrows()}
+        _total = sum(_counts.values())
+        _delivered = _counts.get("Delivered", 0)
+        with _col:
+            st.markdown(f"**{_party}**")
+            # Stacked bar segments
+            _bar_html = '<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin:4px 0 6px">'
+            for _s in STATUS_ORDER:
+                _n = _counts.get(_s, 0)
+                if _n:
+                    _pct = round(100 * _n / _total)
+                    _bar_html += (
+                        f'<div title="{_s}: {_n}" '
+                        f'style="width:{_pct}%;background:{STATUS_COLOURS[_s]}"></div>'
+                    )
+            _bar_html += "</div>"
+            st.markdown(_bar_html, unsafe_allow_html=True)
+            # Mini legend counts
+            _leg = " · ".join(
+                f'<span style="color:{STATUS_COLOURS[_s]};font-size:11px">'
+                f'{"✅" if _s=="Delivered" else "🔄" if _s=="In Progress" else "⏳" if _s=="Not Started" else "❌"}'
+                f' {_counts.get(_s,0)}</span>'
+                for _s in STATUS_ORDER if _counts.get(_s, 0)
+            )
+            st.markdown(_leg, unsafe_allow_html=True)
+            st.caption(
+                f"{_delivered}/{_total} delivered · "
+                f"[See all →](#promises-tab)"
+            )
+
+st.divider()
+
 # ── Compare banner (shows when 1+ politicians selected) ───────────────────────
 n_compare = len(st.session_state.compare_ids)
 if n_compare > 0:
@@ -669,8 +722,8 @@ if n_compare > 0:
             st.rerun()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab_reps, tab_senate, tab_divs, tab_votes, tab_compare = st.tabs([
-    "House of Reps", "Senate", "Divisions", "Vote Explorer", "⚖️ Compare"
+tab_reps, tab_senate, tab_divs, tab_votes, tab_compare, tab_promises = st.tabs([
+    "House of Reps", "Senate", "Divisions", "Vote Explorer", "⚖️ Compare", "📋 Promises"
 ])
 
 
@@ -1153,3 +1206,115 @@ def build_compare_tab():
 
 with tab_compare:
     build_compare_tab()
+
+# ── Promises tab ───────────────────────────────────────────────────────────────
+def build_promises_tab():
+    all_promises = query("SELECT * FROM promises ORDER BY party, category, promise")
+    if all_promises.empty:
+        st.info("No promise data yet. Run: python3 seed_promises.py")
+        return
+
+    # ── Filters ────────────────────────────────────────────────────────────────
+    f1, f2, f3 = st.columns(3)
+    with f1:
+        parties = ["All"] + sorted(all_promises["party"].unique().tolist())
+        sel_party = st.selectbox("Party", parties, key="prom_party")
+    with f2:
+        cats = ["All"] + sorted(all_promises["category"].unique().tolist())
+        sel_cat = st.selectbox("Category", cats, key="prom_cat")
+    with f3:
+        statuses = ["All"] + STATUS_ORDER
+        sel_status = st.selectbox("Status", statuses, key="prom_status")
+
+    df = all_promises.copy()
+    if sel_party != "All":
+        df = df[df["party"] == sel_party]
+    if sel_cat != "All":
+        df = df[df["category"] == sel_cat]
+    if sel_status != "All":
+        df = df[df["status"] == sel_status]
+
+    st.caption(f"{len(df)} promise{'s' if len(df) != 1 else ''} shown.")
+
+    # ── Per-party summary (full tab) ───────────────────────────────────────────
+    summary = query("""
+        SELECT party, status, COUNT(*) AS n FROM promises GROUP BY party, status
+    """)
+    if not summary.empty and sel_party == "All" and sel_status == "All":
+        st.subheader("Summary by party")
+        summary_cols = st.columns(len(summary["party"].unique()))
+        for col, party in zip(summary_cols, sorted(summary["party"].unique())):
+            pdata = summary[summary["party"] == party]
+            counts = {r["status"]: r["n"] for _, r in pdata.iterrows()}
+            total = sum(counts.values())
+            with col:
+                st.markdown(f"**{party}**")
+                for s in STATUS_ORDER:
+                    n = counts.get(s, 0)
+                    if n:
+                        icon = {"Delivered": "✅", "In Progress": "🔄",
+                                "Not Started": "⏳", "Broken": "❌"}.get(s, "")
+                        bar_w = round(100 * n / total)
+                        st.markdown(
+                            f'<div style="display:flex;align-items:center;gap:6px;margin:3px 0">'
+                            f'<div style="width:{max(bar_w,4)}%;height:8px;'
+                            f'background:{STATUS_COLOURS[s]};border-radius:4px;'
+                            f'min-width:4px"></div>'
+                            f'<span style="font-size:12px;color:#ccc">{icon} {s}: {n}</span>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+
+    st.divider()
+
+    # ── Promise cards ──────────────────────────────────────────────────────────
+    PARTY_LABEL = {"ALP": "🔴 ALP", "LNP": "🔵 LNP", "Greens": "🟢 Greens"}
+    STATUS_ICON = {
+        "Delivered":   "✅",
+        "In Progress": "🔄",
+        "Not Started": "⏳",
+        "Broken":      "❌",
+    }
+
+    # Group by category for readability
+    for category in sorted(df["category"].unique()):
+        cat_df = df[df["category"] == category]
+        st.markdown(f"#### {category}")
+        for _, row in cat_df.iterrows():
+            colour = STATUS_COLOURS.get(row["status"], "#555")
+            icon   = STATUS_ICON.get(row["status"], "")
+            party_label = PARTY_LABEL.get(row["party"], row["party"])
+            badge = (
+                f'<span style="background:{colour};color:#fff;'
+                f'padding:2px 10px;border-radius:10px;font-size:11px;'
+                f'font-weight:600;white-space:nowrap">'
+                f'{icon} {row["status"]}</span>'
+            )
+            party_badge = (
+                f'<span style="font-size:11px;color:#aaa;margin-left:8px">'
+                f'{party_label}</span>'
+            )
+            st.markdown(
+                f'<div style="border-left:3px solid {colour};'
+                f'padding:10px 14px;margin:6px 0;'
+                f'background:rgba(255,255,255,0.03);border-radius:0 6px 6px 0">'
+                f'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">'
+                f'{badge}{party_badge}</div>'
+                f'<div style="font-size:14px;margin-bottom:4px">{row["promise"]}</div>'
+                + (
+                    f'<div style="font-size:12px;color:#999">{row["evidence"]}</div>'
+                    if row.get("evidence") else ""
+                )
+                + (
+                    f'<div style="margin-top:4px">'
+                    f'<a href="{row["source_url"]}" target="_blank" '
+                    f'style="font-size:11px;color:#3498db">Source ↗</a></div>'
+                    if row.get("source_url") else ""
+                )
+                + "</div>",
+                unsafe_allow_html=True,
+            )
+
+
+with tab_promises:
+    build_promises_tab()

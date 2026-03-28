@@ -181,6 +181,20 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS promises (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            party        TEXT    NOT NULL,
+            category     TEXT    NOT NULL,
+            promise      TEXT    NOT NULL,
+            status       TEXT    NOT NULL DEFAULT 'Not Started',
+            evidence     TEXT,
+            source_url   TEXT,
+            added_date   TEXT,
+            updated_date TEXT
+        )
+    ''')
+
     conn.commit()
     conn.close()
     print("Database schema initialised.")
