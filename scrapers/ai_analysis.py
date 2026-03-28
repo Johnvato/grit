@@ -7,9 +7,12 @@ import datetime
 import sqlite3
 import json
 import os
+import re
+import time
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types as genai_types
     HAS_GEMINI = True
 except ImportError:
     HAS_GEMINI = False
@@ -46,18 +49,16 @@ def get_gemini_key() -> str | None:
         return None
 
 
-def get_model():
+MODEL = "gemini-2.5-flash"
+
+
+def get_client():
     if not HAS_GEMINI:
         return None
     key = get_gemini_key()
     if not key or key.startswith("your-"):
         return None
-    genai.configure(api_key=key)
-    return genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
-        system_instruction=SYSTEM_PROMPT,
-        generation_config={"temperature": 0.2, "max_output_tokens": 600},
-    )
+    return genai.Client(api_key=key)
 
 
 def analyse_politician(
@@ -68,8 +69,8 @@ def analyse_politician(
     chamber: str,
     force: bool = False,
 ) -> bool:
-    model = get_model()
-    if not model:
+    client = get_client()
+    if not client:
         return False
 
     c = conn.cursor()
@@ -98,18 +99,25 @@ def analyse_politician(
     )
 
     try:
-        response = model.generate_content(
-            USER_PROMPT.format(
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=USER_PROMPT.format(
                 name=name, party=party, chamber=chamber, headlines=headlines
-            )
+            ),
+            config=genai_types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                temperature=0.2,
+                max_output_tokens=2048,
+            ),
         )
         raw = response.text.strip()
-        # Strip markdown code fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
+        # Extract the outermost JSON object regardless of surrounding markdown
+        start = raw.find("{")
+        end = raw.rfind("}") + 1
+        if start != -1 and end > start:
+            raw = raw[start:end]
         data = json.loads(raw)
+        time.sleep(13)    # 5 RPM free tier → one call every ~13s
 
         c.execute('''
             INSERT OR REPLACE INTO ai_analysis
@@ -135,8 +143,8 @@ def analyse_politician(
 
 
 def sync_all_analyses(db_path: str = "grit_cache.db"):
-    model = get_model()
-    if not model:
+    client = get_client()
+    if not client:
         print("  Gemini key not configured — skipping AI analysis.")
         print("  Add GEMINI_API_KEY to .streamlit/secrets.toml")
         print("  Get a free key at: https://aistudio.google.com/app/apikey")
