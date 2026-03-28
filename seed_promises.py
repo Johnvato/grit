@@ -24,6 +24,8 @@ PROMISES = [
         "promise": "Provide household energy bill relief ($300 rebate per eligible household)",
         "status": "Delivered",
         "evidence": "Energy Bill Relief Fund payments delivered in 2023–24 and extended into 2024–25.",
+        "scrutiny": "Economists noted the rebate was temporary and did not address underlying price drivers. The Grattan Institute argued it was 'poorly targeted' — going to all households rather than those most in need.",
+        "scrutiny_source": "Grattan Institute, ABC News",
         "source_url": "https://www.energy.gov.au/rebates/energy-bill-relief-fund",
     },
     {
@@ -32,6 +34,8 @@ PROMISES = [
         "promise": "Cut the cost of medicines by raising the PBS safety net threshold",
         "status": "Delivered",
         "evidence": "PBS general patient co-payment frozen; Safety Net thresholds reduced from Jan 2023.",
+        "scrutiny": "Welcomed by health groups. The Pharmacy Guild noted increased dispensing volumes. Some concern that the freeze may not keep pace with pharmaceutical costs long-term.",
+        "scrutiny_source": "Pharmacy Guild of Australia, The Guardian",
         "source_url": "https://www.health.gov.au/our-work/pbs",
     },
     {
@@ -40,6 +44,8 @@ PROMISES = [
         "promise": "Deliver Stage 3 tax cuts (restructured to benefit lower & middle earners)",
         "status": "Delivered",
         "evidence": "Redesigned Stage 3 tax cuts legislated and took effect 1 July 2024.",
+        "scrutiny": "Labor originally promised not to change Stage 3 cuts — the redesign was criticised as a broken promise by the Coalition, but praised by welfare groups for redistributing benefits to lower earners. PBO analysis confirmed 84% of taxpayers received larger cuts under the revised plan.",
+        "scrutiny_source": "Parliamentary Budget Office, Sky News, ACOSS",
         "source_url": "https://www.ato.gov.au/individuals-and-families/budget-tax-cuts",
     },
     {
@@ -48,6 +54,8 @@ PROMISES = [
         "promise": "Triple Medicare bulk billing incentive to increase GP bulk billing rates",
         "status": "Delivered",
         "evidence": "Tripling of bulk billing incentive legislated November 2023; bulk billing rates rising.",
+        "scrutiny": "AMA welcomed the increase but said it was overdue and still insufficient to reverse decades of bulk billing decline. Bulk billing rates rose from 78% to 80% in the first 6 months — short of universal access.",
+        "scrutiny_source": "Australian Medical Association, ABC Health",
         "source_url": "https://www.health.gov.au/our-work/bulk-billing-support-incentive",
     },
     {
@@ -56,6 +64,8 @@ PROMISES = [
         "promise": "Establish 50 Medicare Urgent Care Clinics nationally",
         "status": "Delivered",
         "evidence": "58 Medicare Urgent Care Clinics open across Australia as of 2024.",
+        "scrutiny": "Over-delivered on the target (58 vs 50). However, hospital emergency departments reported minimal reduction in presentations. Critics argue clinics are treating low-acuity cases that would have gone to GPs anyway.",
+        "scrutiny_source": "Australian Institute of Health and Welfare, SMH",
         "source_url": "https://www.health.gov.au/our-work/medicare-urgent-care-clinics",
     },
     {
@@ -64,6 +74,8 @@ PROMISES = [
         "promise": "Legislate same job, same pay (close labour-hire loopholes)",
         "status": "Delivered",
         "evidence": "Fair Work Legislation Amendment (Closing Loopholes) Act passed December 2023.",
+        "scrutiny": "Business groups (ACCI, Ai Group) warned the reforms would increase costs and reduce flexibility. Unions strongly supported. Early evidence shows some companies bringing labour-hire workers in-house. The mining sector flagged concerns about implementation complexity.",
+        "scrutiny_source": "ACCI, ACTU, Australian Financial Review",
         "source_url": "https://www.fairwork.gov.au/about-us/news-and-media-releases/2023-media-releases/december-2023/20231206-closing-loopholes-bill-passed",
     },
     {
@@ -72,6 +84,8 @@ PROMISES = [
         "promise": "Legislate the right to disconnect from work outside hours",
         "status": "Delivered",
         "evidence": "Right to disconnect provisions in effect from 26 August 2024 for large employers.",
+        "scrutiny": "Coalition pledged to repeal if elected. Business Council of Australia called it 'unnecessary red tape.' International precedent (France, Belgium) suggests limited enforcement impact. Workers' groups hailed it as a cultural shift.",
+        "scrutiny_source": "Business Council of Australia, The Australian",
         "source_url": "https://www.fairwork.gov.au/employment-conditions/hours-of-work-breaks-and-rosters/right-to-disconnect",
     },
     {
@@ -80,6 +94,8 @@ PROMISES = [
         "promise": "Establish a National Anti-Corruption Commission (NACC)",
         "status": "Delivered",
         "evidence": "NACC established and operational from 1 July 2023.",
+        "scrutiny": "Transparency International praised the establishment but criticised the decision to hold most hearings in private. The Greens and crossbench pushed for public hearings as default. First year saw 3,000+ referrals but no public inquiries, drawing criticism from anti-corruption advocates.",
+        "scrutiny_source": "Transparency International Australia, Centre for Public Integrity",
         "source_url": "https://www.nacc.gov.au",
     },
     {
@@ -88,6 +104,8 @@ PROMISES = [
         "promise": "Expand Paid Parental Leave to 26 weeks by 2026",
         "status": "In Progress",
         "evidence": "Increased to 22 weeks from July 2024, expanding to 24 weeks in July 2025, 26 weeks July 2026.",
+        "scrutiny": "On track to meet the 2026 target. Business groups supported the phased approach. The Parenthood and gender equity groups praised the reform but noted Australia still lags behind OECD average (18 weeks paid at full rate equivalent).",
+        "scrutiny_source": "The Parenthood, OECD",
         "source_url": "https://www.servicesaustralia.gov.au/parental-leave-pay",
     },
     {
@@ -96,6 +114,8 @@ PROMISES = [
         "promise": "Increase childcare subsidy to reduce out-of-pocket costs for families",
         "status": "Delivered",
         "evidence": "Higher childcare subsidy rates in effect from July 2023; savings of $1,700+ per year for eligible families.",
+        "scrutiny": "ACCC inquiry found that fee increases by childcare providers absorbed much of the subsidy increase — net savings were lower than headline figures. The Productivity Commission recommended a universal 90% subsidy; ALP's scheme still means-tests access.",
+        "scrutiny_source": "ACCC, Productivity Commission",
         "source_url": "https://www.servicesaustralia.gov.au/child-care-subsidy",
     },
     {
@@ -104,6 +124,8 @@ PROMISES = [
         "promise": "Build 1.2 million new homes through the National Housing Accord by 2029",
         "status": "In Progress",
         "evidence": "National Housing Accord agreed with states; Housing Australia Future Fund established. Construction targets on track.",
+        "scrutiny": "Industry bodies warned labour and material shortages make the 1.2 million target 'aspirational at best.' Master Builders Australia estimated a shortfall of 200,000+ workers needed. Housing completions in 2024 were below the annualised rate required. The Greens argue the Accord lacks social housing targets.",
+        "scrutiny_source": "Master Builders Australia, Housing Industry Association, The Guardian",
         "source_url": "https://www.nhfic.gov.au/research-and-publications/housing-australia-future-fund",
     },
     {
@@ -112,6 +134,8 @@ PROMISES = [
         "promise": "Launch Help to Buy shared equity scheme for first home buyers",
         "status": "Not Started",
         "evidence": "Legislation stalled in Senate; Greens blocked bill in 2023-24. Revised scheme announced for 2025.",
+        "scrutiny": "The Greens argued it was demand-side stimulus that would push up prices. The Coalition also opposed it. Housing economists broadly sceptical — shared equity schemes in the UK and NZ have had modest uptake. Re-introduced post-2025 election but still awaiting passage.",
+        "scrutiny_source": "Australian Housing and Urban Research Institute, Greens Party",
         "source_url": "https://www.helptobuy.gov.au",
     },
     {
@@ -120,6 +144,8 @@ PROMISES = [
         "promise": "Make TAFE and vocational education fee-free for priority courses",
         "status": "Delivered",
         "evidence": "Fee-Free TAFE launched January 2023; 300,000+ enrolments in first year.",
+        "scrutiny": "NCVER data showed strong enrolment growth. Critics noted high dropout rates in some courses and questioned whether priority courses aligned with actual skills shortages. The program is time-limited and requires ongoing funding commitment.",
+        "scrutiny_source": "NCVER, Australian Skills Quality Authority",
         "source_url": "https://www.dewr.gov.au/skills-and-training/fee-free-tafe",
     },
     {
@@ -128,6 +154,8 @@ PROMISES = [
         "promise": "Legislate 43% emissions reduction by 2030 (vs 2005 levels)",
         "status": "Delivered",
         "evidence": "Climate Change Act 2022 passed with 43% target legislated. Safeguard Mechanism reformed.",
+        "scrutiny": "Climate Council and scientists argued 43% is insufficient (IPCC recommends 75% for 1.5°C). The Greens called it a 'floor, not a ceiling.' Safeguard Mechanism allows polluters to use offsets — environmental groups say this creates a loophole. Independent analysis projects Australia will narrowly meet the target.",
+        "scrutiny_source": "Climate Council, IPCC, Climate Action Tracker",
         "source_url": "https://www.dcceew.gov.au/climate-change/policy/climate-change-act-2022",
     },
     {
@@ -136,6 +164,8 @@ PROMISES = [
         "promise": "Reach 82% renewable electricity by 2030",
         "status": "In Progress",
         "evidence": "Renewables at ~40% (2024). Capacity investment scheme and transmission projects underway.",
+        "scrutiny": "Clean Energy Council said the target is achievable but requires faster grid connection approvals. Transmission build-out is 2–3 years behind schedule. Coalition argues the target is unrealistic without gas backup. AEMO's Integrated System Plan shows a credible pathway but flags community opposition to wind farms as a risk.",
+        "scrutiny_source": "Clean Energy Council, AEMO, Australian Financial Review",
         "source_url": "https://www.energy.gov.au/government-priorities/australias-energy-strategies-and-frameworks/powering-australia",
     },
     {
@@ -144,6 +174,8 @@ PROMISES = [
         "promise": "Implement all 148 Royal Commission into Aged Care recommendations",
         "status": "In Progress",
         "evidence": "Aged Care Act 2024 passed. New standards effective July 2024. Workforce reforms ongoing.",
+        "scrutiny": "Aged Care Royal Commission commissioners criticised the pace of reform. Mandatory minimum care minutes (200 per resident per day) introduced but workforce shortages make compliance difficult. Unions report ongoing understaffing. Only ~60% of recommendations fully implemented by mid-2025.",
+        "scrutiny_source": "Aged Care Royal Commission, Health Services Union, ABC News",
         "source_url": "https://www.health.gov.au/our-work/aged-care-reform",
     },
     {
@@ -152,6 +184,8 @@ PROMISES = [
         "promise": "Stabilise NDIS spending and improve scheme sustainability",
         "status": "In Progress",
         "evidence": "NDIS Review completed 2023. Legislation amending scheme passed 2024. Spending growth slowing.",
+        "scrutiny": "Disability advocates warn 'sustainability' is code for cuts. Every Australian Counts campaign flagged that independent assessments may reduce participant choice. Spending growth slowed from 14% to 8% annually but still exceeds long-term targets. State governments raised concerns about cost-shifting.",
+        "scrutiny_source": "Every Australian Counts, NDIS Review Panel, The Saturday Paper",
         "source_url": "https://www.ndis.gov.au/about-us/our-organisation/ndis-review",
     },
     {
@@ -160,6 +194,8 @@ PROMISES = [
         "promise": "Cap student debt indexation to wages or CPI (whichever is lower)",
         "status": "Delivered",
         "evidence": "HELP debt indexation capped at wages or CPI; backdated refunds issued June 2024.",
+        "scrutiny": "Widely praised. Universities Australia and student unions supported it. Backdated refunds totalled $3 billion. Critics argued it doesn't address the underlying growth in HECS balances from rising fees. Some called for full debt cancellation (adopted by Greens but not ALP).",
+        "scrutiny_source": "Universities Australia, National Union of Students",
         "source_url": "https://www.education.gov.au/hecs-help-debt-indexation",
     },
 
@@ -329,15 +365,17 @@ def seed(clear_first: bool = True):
 
     c.execute('''
         CREATE TABLE IF NOT EXISTS promises (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            party        TEXT    NOT NULL,
-            category     TEXT    NOT NULL,
-            promise      TEXT    NOT NULL,
-            status       TEXT    NOT NULL DEFAULT 'Not Started',
-            evidence     TEXT,
-            source_url   TEXT,
-            added_date   TEXT,
-            updated_date TEXT
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            party           TEXT    NOT NULL,
+            category        TEXT    NOT NULL,
+            promise         TEXT    NOT NULL,
+            status          TEXT    NOT NULL DEFAULT 'Not Started',
+            evidence        TEXT,
+            scrutiny        TEXT,
+            scrutiny_source TEXT,
+            source_url      TEXT,
+            added_date      TEXT,
+            updated_date    TEXT
         )
     ''')
 
@@ -347,11 +385,16 @@ def seed(clear_first: bool = True):
 
     for p in PROMISES:
         c.execute('''
-            INSERT INTO promises (party, category, promise, status, evidence, source_url, added_date, updated_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO promises
+                (party, category, promise, status, evidence,
+                 scrutiny, scrutiny_source, source_url,
+                 added_date, updated_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             p["party"], p["category"], p["promise"], p["status"],
-            p.get("evidence", ""), p.get("source_url", ""),
+            p.get("evidence", ""),
+            p.get("scrutiny", ""), p.get("scrutiny_source", ""),
+            p.get("source_url", ""),
             TODAY, TODAY,
         ))
 

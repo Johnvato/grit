@@ -183,17 +183,25 @@ def init_db():
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS promises (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            party        TEXT    NOT NULL,
-            category     TEXT    NOT NULL,
-            promise      TEXT    NOT NULL,
-            status       TEXT    NOT NULL DEFAULT 'Not Started',
-            evidence     TEXT,
-            source_url   TEXT,
-            added_date   TEXT,
-            updated_date TEXT
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            party           TEXT    NOT NULL,
+            category        TEXT    NOT NULL,
+            promise         TEXT    NOT NULL,
+            status          TEXT    NOT NULL DEFAULT 'Not Started',
+            evidence        TEXT,
+            scrutiny        TEXT,
+            scrutiny_source TEXT,
+            source_url      TEXT,
+            added_date      TEXT,
+            updated_date    TEXT
         )
     ''')
+
+    # Safe migration for existing DBs
+    _prom_cols = [r[1] for r in cursor.execute("PRAGMA table_info(promises)").fetchall()]
+    for _col, _defn in [("scrutiny", "TEXT"), ("scrutiny_source", "TEXT")]:
+        if _col not in _prom_cols:
+            cursor.execute(f"ALTER TABLE promises ADD COLUMN {_col} {_defn}")
 
     conn.commit()
     conn.close()

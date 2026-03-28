@@ -692,26 +692,57 @@ STATUS_ORDER = ["Delivered", "In Progress", "Not Started", "Broken"]
 GOVERNMENT_PARTY = "ALP"   # update if government changes
 STATUS_ICON = {"Delivered": "✅", "In Progress": "🔄", "Not Started": "⏳", "Broken": "❌"}
 
-def _promise_list_html(promises_df) -> str:
-    """Render promises as native <details> accordion items — no Streamlit state needed."""
+def _promise_list_html(promises_df, is_government: bool = True) -> str:
+    """Render promises as native <details> accordion items."""
     html = ""
     for _, p in promises_df.iterrows():
         colour = STATUS_COLOURS.get(p["status"], "#555")
         icon   = STATUS_ICON.get(p["status"], "")
-        badge  = (
-            f'<span style="background:{colour};color:#fff;'
-            f'padding:1px 8px;border-radius:8px;font-size:11px;font-weight:600;'
-            f'white-space:nowrap;margin-right:6px">{icon} {p["status"]}</span>'
-        )
-        source = (
-            f'<a href="{p["source_url"]}" target="_blank" '
-            f'style="color:#3498db;font-size:11px">Source ↗</a>'
-            if p.get("source_url") else ""
-        )
-        evidence = (
-            f'<div style="font-size:12px;color:#aaa;margin:4px 0">{p["evidence"]}</div>'
-            if p.get("evidence") else ""
-        )
+
+        if is_government:
+            badge = (
+                f'<span style="background:{colour};color:#fff;'
+                f'padding:1px 8px;border-radius:8px;font-size:11px;font-weight:600;'
+                f'white-space:nowrap;margin-right:6px">{icon} {p["status"]}</span>'
+            )
+        else:
+            badge = ""
+            colour = "#555"
+
+        # Detail body — richer for government, simple for opposition
+        body_parts = []
+        if is_government:
+            if p.get("evidence"):
+                body_parts.append(
+                    f'<div style="font-size:12px;color:#ccc;margin:6px 0 4px;'
+                    f'border-left:2px solid {colour};padding-left:8px">'
+                    f'<strong>Progress:</strong> {p["evidence"]}</div>'
+                )
+            if p.get("scrutiny"):
+                body_parts.append(
+                    f'<div style="font-size:12px;color:#bbb;margin:4px 0;'
+                    f'border-left:2px solid #f5a623;padding-left:8px">'
+                    f'<strong>Scrutiny:</strong> {p["scrutiny"]}</div>'
+                )
+            if p.get("scrutiny_source"):
+                body_parts.append(
+                    f'<div style="font-size:11px;color:#888;margin:2px 0">'
+                    f'Scrutiny source: <em>{p["scrutiny_source"]}</em></div>'
+                )
+        else:
+            if p.get("evidence"):
+                body_parts.append(
+                    f'<div style="font-size:12px;color:#aaa;margin:4px 0">{p["evidence"]}</div>'
+                )
+
+        if p.get("source_url"):
+            body_parts.append(
+                f'<a href="{p["source_url"]}" target="_blank" '
+                f'style="color:#3498db;font-size:11px">Source ↗</a>'
+            )
+
+        body = "".join(body_parts)
+
         html += (
             f'<details style="border-left:3px solid {colour};'
             f'padding:6px 10px;margin:5px 0;'
@@ -719,7 +750,7 @@ def _promise_list_html(promises_df) -> str:
             f'<summary style="list-style:none;font-size:13px;display:flex;'
             f'align-items:flex-start;gap:6px;flex-wrap:wrap">'
             f'{badge}<span>{p["promise"]}</span></summary>'
-            f'{evidence}{source}'
+            f'{body}'
             f'</details>'
         )
     return html
@@ -785,7 +816,7 @@ if not _promise_summary.empty:
                     for _cat in sorted(_party_promises["category"].unique()):
                         st.markdown(f"**{_cat}**")
                         _cat_df = _party_promises[_party_promises["category"] == _cat]
-                        st.markdown(_promise_list_html(_cat_df), unsafe_allow_html=True)
+                        st.markdown(_promise_list_html(_cat_df, is_government=False), unsafe_allow_html=True)
 
 st.divider()
 
@@ -1369,51 +1400,19 @@ def build_promises_tab():
 
     st.divider()
 
-    # ── Promise cards ──────────────────────────────────────────────────────────
-    PARTY_LABEL = {"ALP": "🔴 ALP", "LNP": "🔵 LNP", "Greens": "🟢 Greens"}
-    STATUS_ICON = {
-        "Delivered":   "✅",
-        "In Progress": "🔄",
-        "Not Started": "⏳",
-        "Broken":      "❌",
-    }
-
-    # Group by category for readability
+    # ── Promise cards (grouped by category) ────────────────────────────────────
     for category in sorted(df["category"].unique()):
         cat_df = df[df["category"] == category]
         st.markdown(f"#### {category}")
-        for _, row in cat_df.iterrows():
-            colour = STATUS_COLOURS.get(row["status"], "#555")
-            icon   = STATUS_ICON.get(row["status"], "")
-            party_label = PARTY_LABEL.get(row["party"], row["party"])
-            badge = (
-                f'<span style="background:{colour};color:#fff;'
-                f'padding:2px 10px;border-radius:10px;font-size:11px;'
-                f'font-weight:600;white-space:nowrap">'
-                f'{icon} {row["status"]}</span>'
-            )
-            party_badge = (
-                f'<span style="font-size:11px;color:#aaa;margin-left:8px">'
-                f'{party_label}</span>'
-            )
+
+        # Government promises get the rich template; opposition gets the clean one
+        for party in cat_df["party"].unique():
+            party_cat_df = cat_df[cat_df["party"] == party]
+            is_gov = party == GOVERNMENT_PARTY
+            if len(cat_df["party"].unique()) > 1:
+                st.caption(party)
             st.markdown(
-                f'<div style="border-left:3px solid {colour};'
-                f'padding:10px 14px;margin:6px 0;'
-                f'background:rgba(255,255,255,0.03);border-radius:0 6px 6px 0">'
-                f'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">'
-                f'{badge}{party_badge}</div>'
-                f'<div style="font-size:14px;margin-bottom:4px">{row["promise"]}</div>'
-                + (
-                    f'<div style="font-size:12px;color:#999">{row["evidence"]}</div>'
-                    if row.get("evidence") else ""
-                )
-                + (
-                    f'<div style="margin-top:4px">'
-                    f'<a href="{row["source_url"]}" target="_blank" '
-                    f'style="font-size:11px;color:#3498db">Source ↗</a></div>'
-                    if row.get("source_url") else ""
-                )
-                + "</div>",
+                _promise_list_html(party_cat_df, is_government=is_gov),
                 unsafe_allow_html=True,
             )
 
