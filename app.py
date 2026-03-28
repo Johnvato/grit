@@ -265,6 +265,10 @@ def news_section(politician_id: int, limit: int = 8):
 
 def voting_record_section(politician_id: int, party: str, chamber: str):
     """Rebellions + recent attendance breakdown inside the profile expander."""
+    # Career rebellion count from TVFY API (covers all divisions, not just synced ones)
+    career_row = query("SELECT rebellions FROM politicians WHERE id = ?", (politician_id,))
+    career_total = int(career_row.iloc[0]["rebellions"]) if not career_row.empty else 0
+
     # ── Rebellions: votes where politician differed from party majority ──────
     rebellions_df = query("""
         SELECT d.date, d.name AS division, v.vote AS my_vote,
@@ -297,13 +301,24 @@ def voting_record_section(politician_id: int, party: str, chamber: str):
         missed_df = all_divs[~all_divs["id"].isin(attended_ids)].head(20)
 
         r_tab, a_tab = st.tabs([
-            f"⚡ Rebellions ({len(reb)})",
+            f"⚡ Rebellions ({len(reb)} found locally)",
             f"📅 Attendance log",
         ])
 
         with r_tab:
+            if career_total > 0:
+                tvfy_profile = (
+                    f"https://theyvoteforyou.org.au/people/"
+                    f"{chamber}/{politician_id}"
+                )
+                st.caption(
+                    f"They Vote For You records **{career_total} career rebellion{'s' if career_total != 1 else ''}** total. "
+                    f"Only divisions synced to this app ({len(rebellions_df)}) can be shown below — "
+                    f"earlier rebellions may not be in our local database. "
+                    f"[View full record on TVFY ↗](https://theyvoteforyou.org.au)"
+                )
             if reb.empty:
-                st.caption("No rebellions detected in synced divisions.")
+                st.caption("No rebellions found in locally synced divisions.")
             else:
                 for _, row in reb.iterrows():
                     try:
@@ -466,11 +481,12 @@ def politician_grid(df, chamber="representatives", tab_key=""):
                 location = row.get("state") or row.get("electorate", "")
                 att = row.get("attendance_%", "—")
                 reb = int(row["rebellions"])
+                reb_label = f"Reb: {reb}*" if reb > 0 else "Reb: 0"
                 st.markdown(
                     f'<div style="font-size:11px;color:#888;line-height:1.4;margin-bottom:4px">'
                     f'{row["party"]}<br>'
                     f'{location}<br>'
-                    f'Att: {att} · Reb: {reb}<br>'
+                    f'Att: {att} · {reb_label}<br>'
                     f'⏳ {days_left:,}d'
                     f'</div>',
                     unsafe_allow_html=True,
@@ -805,7 +821,11 @@ def build_mp_tab(chamber: str):
         mps = mps[mps["state"] == state_from_pc]
 
     politician_grid(mps, chamber, tab_key=chamber)
-    st.caption(f"{len(mps)} shown.")
+    st.caption(
+        f"{len(mps)} shown. "
+        "\\* Rebellion count is a career total from They Vote For You and may exceed "
+        "what's visible in locally synced divisions."
+    )
 
 
 # ── House of Reps ─────────────────────────────────────────────────────────────
