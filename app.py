@@ -163,33 +163,47 @@ def electorate_card(electorate: str):
 
 def bipolar_bar(controversy: int, positive: int, compact: bool = False) -> str:
     """
-    Bipolar bar: red extends LEFT (controversy), green extends RIGHT (positive).
-    Both are independent 1-10 scales. Zero on both = 'not enough information'.
+    Bipolar bar centred on a midpoint.
+    Red extends LEFT (controversy/heat), green extends RIGHT (positive).
+    Both are independent 1-10 scales.
+    Empty bar shown when both are zero (no AI data yet).
     """
-    if controversy == 0 and positive == 0:
-        return (
-            '<div class="no-info-mobile" style="font-size:11px;color:#666;font-style:italic;margin:4px 0">'
-            'Not enough information</div>'
-        )
-    c_pct = max(0, min(100, controversy * 10))
-    p_pct = max(0, min(100, positive * 10))
-    height = "6px" if compact else "8px"
+    height = "7px" if compact else "9px"
     font   = "10px" if compact else "11px"
+    c_pct  = max(0, min(100, (controversy or 0) * 10))
+    p_pct  = max(0, min(100, (positive  or 0) * 10))
+    no_data = controversy == 0 and positive == 0
+
+    # Labels row — only shown when there's data
+    if no_data:
+        labels = (
+            f'<div style="font-size:{font};color:#444;margin-top:2px;font-style:italic">'
+            f'no AI data</div>'
+        )
+    else:
+        left_label  = f'<span style="color:#e74c3c">&#8722;&nbsp;{controversy}/10</span>' if controversy else '<span></span>'
+        right_label = f'<span style="color:#27ae60">&#43;&nbsp;{positive}/10</span>'       if positive  else '<span></span>'
+        labels = (
+            f'<div style="display:flex;justify-content:space-between;'
+            f'font-size:{font};margin-top:2px">'
+            f'{left_label}{right_label}</div>'
+        )
+
     return f"""
-<div style="margin:5px 0 2px 0">
-  <div style="display:flex;align-items:center;gap:0;height:{height};border-radius:4px;overflow:hidden;background:#1e1e2e">
-    <div style="flex:1;display:flex;justify-content:flex-end">
-      <div style="width:{c_pct}%;height:100%;background:linear-gradient(to left,#e74c3c,#922b21)"></div>
+<div style="margin:4px 0 1px 0">
+  <div style="display:flex;height:{height};border-radius:4px;overflow:hidden;background:#222">
+    <!-- left half: red grows rightward from left edge toward centre -->
+    <div style="flex:1;display:flex;justify-content:flex-end;background:#222">
+      <div style="width:{c_pct}%;height:100%;background:linear-gradient(to left,#e74c3c,#7b1a1a)"></div>
     </div>
-    <div style="width:2px;height:140%;background:#444;flex-shrink:0"></div>
-    <div style="flex:1">
-      <div style="width:{p_pct}%;height:100%;background:linear-gradient(to right,#27ae60,#1a7a45)"></div>
+    <!-- centre line -->
+    <div style="width:2px;background:#444;flex-shrink:0"></div>
+    <!-- right half: green grows leftward from right edge toward centre -->
+    <div style="flex:1;background:#222">
+      <div style="width:{p_pct}%;height:100%;background:linear-gradient(to right,#27ae60,#1a5c36)"></div>
     </div>
   </div>
-  <div style="display:flex;justify-content:space-between;font-size:{font};color:#888;margin-top:2px">
-    <span style="color:#e74c3c">{'⚠ ' + str(controversy) + '/10' if controversy else ''}</span>
-    <span style="color:#27ae60">{'✓ ' + str(positive) + '/10' if positive else ''}</span>
-  </div>
+  {labels}
 </div>"""
 
 
@@ -553,8 +567,8 @@ st.markdown("""
     line-height: 1.2 !important;
   }
 
-  /* Hide "Not enough information" on mobile to save space */
-  .no-info-mobile { display: none !important; }
+  /* "no AI data" label — smaller on mobile */
+  .no-info-mobile { font-size: 10px !important; }
 
   /* Tighter column padding */
   [data-testid="stColumn"] > div {
