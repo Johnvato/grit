@@ -198,8 +198,8 @@ def sync_division_detail(conn, division_ids):
 
             # Individual votes
             for v in detail.get("votes", []):
-                person = v.get("member", {})
-                pid = person.get("id")
+                member = v.get("member", {})
+                pid = member.get("person", {}).get("id")   # person.id matches politicians table
                 vote_val = v.get("vote", "")
                 if pid:
                     cursor.execute('''

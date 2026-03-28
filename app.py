@@ -229,13 +229,106 @@ def news_section(politician_id: int, limit: int = 8):
         )
 
 
+def voting_record_section(politician_id: int, party: str, chamber: str):
+    """Rebellions + recent attendance breakdown inside the profile expander."""
+
+    # ── Rebellions: votes where politician differed from party majority ──────
+    rebellions_df = query("""
+        SELECT d.date, d.name AS division, v.vote AS my_vote,
+               d.house, d.number,
+               (SELECT CASE
+                    WHEN SUM(CASE WHEN v2.vote='aye' THEN 1 ELSE 0 END) >
+                         SUM(CASE WHEN v2.vote='no'  THEN 1 ELSE 0 END)
+                    THEN 'aye' ELSE 'no' END
+                FROM votes v2
+                JOIN politicians p2 ON p2.id = v2.politician_id
+                WHERE v2.division_id = v.division_id
+                  AND p2.party = ?) AS party_majority
+        FROM votes v
+        JOIN divisions d ON d.id = v.division_id
+        WHERE v.politician_id = ?
+        ORDER BY d.date DESC
+    """, (party, politician_id))
+
+    if not rebellions_df.empty:
+        reb = rebellions_df[rebellions_df["my_vote"] != rebellions_df["party_majority"]]
+        recent = rebellions_df.head(30)
+        missed_df = query("""
+            SELECT d.date, d.name AS division
+            FROM divisions d
+            WHERE d.house = ?
+              AND d.id NOT IN (
+                  SELECT division_id FROM votes WHERE politician_id = ?
+              )
+            ORDER BY d.date DESC LIMIT 20
+        """, (chamber, politician_id))
+
+        r_tab, a_tab = st.tabs([
+            f"⚡ Rebellions ({len(reb)})",
+            f"📅 Attendance log",
+        ])
+
+        with r_tab:
+            if reb.empty:
+                st.caption("No rebellions detected in synced divisions.")
+            else:
+                for _, row in reb.iterrows():
+                    tvfy_url = (
+                        f"https://theyvoteforyou.org.au/divisions"
+                        f"/{row['house']}/{row['date']}/{int(row['number'])}"
+                    )
+                    st.markdown(
+                        f'<div style="margin:4px 0;font-size:13px;padding:6px 10px;'
+                        f'background:#1a1a2e;border-left:3px solid #e94560;border-radius:4px">'
+                        f'<a href="{tvfy_url}" target="_blank" style="color:#e94560;font-weight:600">'
+                        f'{row["division"]}</a>'
+                        f'<span style="color:#aaa;font-size:11px"> — {row["date"]}</span><br>'
+                        f'<span style="color:#ddd;font-size:11px">Voted <b>{row["my_vote"].upper()}</b> '
+                        f'(party voted <b>{row["party_majority"].upper()}</b>)</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+        with a_tab:
+            att_col, miss_col = st.columns(2)
+            with att_col:
+                st.markdown("**✅ Recently attended**")
+                for _, row in recent.iterrows():
+                    tvfy_url = (
+                        f"https://theyvoteforyou.org.au/divisions"
+                        f"/{row['house']}/{row['date']}/{int(row['number'])}"
+                    )
+                    st.markdown(
+                        f'<div style="font-size:12px;margin:2px 0">'
+                        f'<a href="{tvfy_url}" target="_blank">{row["division"][:55]}</a>'
+                        f'<span style="color:#aaa"> {row["date"]}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+            with miss_col:
+                st.markdown("**❌ Recently missed**")
+                if missed_df.empty:
+                    st.caption("No recent absences found.")
+                else:
+                    for _, row in missed_df.iterrows():
+                        st.markdown(
+                            f'<div style="font-size:12px;margin:2px 0;color:#aaa">'
+                            f'{row["division"][:55]}'
+                            f'<span style="color:#666"> {row["date"]}</span>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+
+
 def profile_expander(name: str, politician_id: int = None):
     prof = query("SELECT * FROM profiles WHERE name = ?", (name,))
     bio  = query("SELECT * FROM politician_bio WHERE politician_id = ?", (politician_id,)) if politician_id else None
+    pol  = query("SELECT party, chamber FROM politicians WHERE id = ?", (politician_id,)) if politician_id else None
 
     has_profile = not prof.empty
     has_bio     = bio is not None and not bio.empty
     has_ai      = politician_id is not None
+    has_votes   = pol is not None and not pol.empty
 
     if not has_profile and not has_bio and not has_ai:
         return
@@ -283,6 +376,13 @@ def profile_expander(name: str, politician_id: int = None):
                 st.markdown(f"**Term / re-election:** {p['term_end']}")
             if p["postal_address"]:
                 st.markdown(f"**Electorate office:** {p['postal_address']}")
+
+        # ── Voting record & rebellions ───────────────────────────────────────
+        if has_votes:
+            st.divider()
+            party   = pol.iloc[0]["party"]
+            chamber = pol.iloc[0]["chamber"]
+            voting_record_section(politician_id, party, chamber)
 
         # ── AI analysis ──────────────────────────────────────────────────────
         if politician_id:
