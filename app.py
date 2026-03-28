@@ -947,6 +947,12 @@ def build_mp_tab(chamber: str):
 # ── House of Reps ─────────────────────────────────────────────────────────────
 with tab_reps:
     st.subheader("House of Representatives")
+    st.caption(
+        "The House of Representatives is the lower house of the Australian Parliament, "
+        "with 151 members each representing an electorate. Government is formed by the party "
+        "that holds a majority here. Members vote on legislation, and their attendance and "
+        "rebellion records reveal how closely they follow their party's line."
+    )
     search = st.text_input(
         "Search by name, electorate or postcode", key="reps_search",
         placeholder="e.g. Melbourne, Albanese, or 3006"
@@ -1018,11 +1024,23 @@ with tab_reps:
 # ── Senate ────────────────────────────────────────────────────────────────────
 with tab_senate:
     st.subheader("Senate")
+    st.caption(
+        "The Senate is the upper house, with 76 senators representing states and territories. "
+        "It acts as a house of review — scrutinising and amending legislation passed by the House of Reps. "
+        "Minor parties and independents often hold the balance of power here, making Senate voting records "
+        "particularly revealing of political alliances and deal-making."
+    )
     build_mp_tab("senate")
 
 # ── Divisions ─────────────────────────────────────────────────────────────────
 with tab_divs:
     st.subheader("Recent Divisions")
+    st.caption(
+        "A 'division' is a formal vote in Parliament where members are counted for or against. "
+        "Divisions decide whether bills become law, whether motions pass, and how public money is spent. "
+        "This tab shows recent divisions from both chambers — select one to see how each member voted "
+        "and which bills were at stake."
+    )
 
     house_filter = st.radio(
         "Chamber", ["All", "Representatives", "Senate"], horizontal=True
@@ -1109,6 +1127,12 @@ with tab_divs:
 # ── Vote Explorer ─────────────────────────────────────────────────────────────
 with tab_votes:
     st.subheader("How did each politician vote?")
+    st.caption(
+        "Look up any MP or senator to see their complete voting record across all synced divisions. "
+        "This view makes it easy to see whether a politician's votes match their public statements — "
+        "the core of what Polygraph tracks. Filter by aye/no votes to spot patterns, rebellions, "
+        "and absences."
+    )
 
     mp_names = query("SELECT name FROM politicians ORDER BY name")["name"].tolist()
     if not mp_names:
@@ -1164,6 +1188,13 @@ with tab_votes:
 # ── Compare ───────────────────────────────────────────────────────────────────
 def build_compare_tab():
     import json as _json
+
+    st.caption(
+        "Compare politicians side by side — like a product comparison table for democracy. "
+        "Select any combination of MPs and senators using the ⊕ Compare checkbox on their cards, "
+        "then view attendance, rebellions, AI sentiment scores, background, and latest news "
+        "in parallel columns to spot differences at a glance."
+    )
 
     cids = list(st.session_state.compare_ids)
 
@@ -1342,6 +1373,13 @@ with tab_compare:
 
 # ── Promises tab ───────────────────────────────────────────────────────────────
 def build_promises_tab():
+    st.caption(
+        "Election promises are the commitments parties make to win your vote. "
+        "This tracker holds them accountable — showing which promises the government has delivered, "
+        "which are in progress, and which remain unfulfilled. Opposition platforms are included "
+        "to show what was offered as an alternative. Tap any promise for evidence and independent scrutiny."
+    )
+
     all_promises = query("SELECT * FROM promises ORDER BY party, category, promise")
     if all_promises.empty:
         st.info("No promise data yet. Run: python3 seed_promises.py")
