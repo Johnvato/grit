@@ -414,6 +414,9 @@ def politician_grid(df, chamber="representatives"):
                     f"Rebellions: {int(row['rebellions'])}  \n"
                     f"⏳ {days_left:,}d"
                 )
+                heat = int(row["heat_score"]) if row.get("heat_score") else 0
+                if heat > 0:
+                    st.markdown(heat_badge(heat), unsafe_allow_html=True)
                 profile_expander(row["name"], int(row["id"]))
 
 
@@ -600,12 +603,14 @@ with tab_reps:
             if electorates:
                 placeholders = ",".join("?" * len(electorates))
                 reps_df = query(f"""
-                    SELECT id, name, party, electorate, state, photo_url,
-                           votes_attended, votes_possible, rebellions
-                    FROM politicians
-                    WHERE chamber='representatives'
-                      AND electorate IN ({placeholders})
-                    ORDER BY name
+                    SELECT p.id, p.name, p.party, p.electorate, p.state, p.photo_url,
+                           p.votes_attended, p.votes_possible, p.rebellions,
+                           COALESCE(a.heat_score, 0) AS heat_score
+                    FROM politicians p
+                    LEFT JOIN ai_analysis a ON a.politician_id = p.id
+                    WHERE p.chamber='representatives'
+                      AND p.electorate IN ({placeholders})
+                    ORDER BY p.name
                 """, tuple(electorates))
                 st.info(
                     f"Postcode **{search.strip()}** falls in: "
@@ -616,12 +621,14 @@ with tab_reps:
                 st.warning(f"No electorate found for postcode {search.strip()}.")
         else:
             reps_df = query("""
-                SELECT id, name, party, electorate, state, photo_url,
-                       votes_attended, votes_possible, rebellions
-                FROM politicians
-                WHERE chamber='representatives'
-                  AND (LOWER(name) LIKE ? OR LOWER(electorate) LIKE ?)
-                ORDER BY name
+                SELECT p.id, p.name, p.party, p.electorate, p.state, p.photo_url,
+                       p.votes_attended, p.votes_possible, p.rebellions,
+                       COALESCE(a.heat_score, 0) AS heat_score
+                FROM politicians p
+                LEFT JOIN ai_analysis a ON a.politician_id = p.id
+                WHERE p.chamber='representatives'
+                  AND (LOWER(p.name) LIKE ? OR LOWER(p.electorate) LIKE ?)
+                ORDER BY p.name
             """, (f"%{search.lower()}%", f"%{search.lower()}%"))
 
         if not reps_df.empty:
