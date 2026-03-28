@@ -842,8 +842,9 @@ if n_compare > 0:
             st.rerun()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab_reps, tab_senate, tab_indep, tab_divs, tab_votes, tab_compare, tab_promises = st.tabs([
-    "House of Reps", "Senate", "Independents", "Divisions", "Vote Explorer", "Compare", "Promises"
+tab_reps, tab_senate, tab_indep, tab_divs, tab_votes, tab_compare, tab_promises, tab_bills = st.tabs([
+    "House of Reps", "Senate", "Independents", "Divisions", "Vote Explorer",
+    "Compare", "Promises", "Fine Print",
 ])
 
 
@@ -1554,3 +1555,127 @@ def build_promises_tab():
 
 with tab_promises:
     build_promises_tab()
+
+# ── Fine Print (Controversial Bills) ──────────────────────────────────────────
+IMPACT_COLOURS = {
+    "Electoral Reform": "#8e24aa",
+    "Mining / Energy":  "#e67e22",
+    "Digital / Privacy": "#2980b9",
+}
+
+def build_fine_print_tab():
+    st.subheader("The Fine Print")
+    st.caption(
+        "Legislation often sounds reasonable on the surface — but the detail can tell a "
+        "different story. This section highlights bills and policies where the stated purpose "
+        "masks provisions that disproportionately benefit one group at the expense of another. "
+        "Each entry breaks down: what the bill claims to do, what it actually does, "
+        "who benefits, who loses, and what independent critics have said."
+    )
+
+    bills = query("SELECT * FROM controversial_bills ORDER BY year DESC, title")
+    if bills.empty:
+        st.info("No bills data yet. Run: python3 seed_controversial_bills.py")
+        return
+
+    # ── Category filter ────────────────────────────────────────────────────────
+    categories = ["All"] + sorted(bills["category"].unique().tolist())
+    sel_cat = st.selectbox("Filter by category", categories, key="fp_cat")
+    if sel_cat != "All":
+        bills = bills[bills["category"] == sel_cat]
+
+    st.caption(f"{len(bills)} bill{'s' if len(bills) != 1 else ''} shown.")
+    st.divider()
+
+    for _, b in bills.iterrows():
+        colour = IMPACT_COLOURS.get(b["category"], "#666")
+
+        # Title bar
+        year_label = f" ({b['year']})" if b.get("year") else ""
+        status_label = b.get("status") or ""
+        st.markdown(
+            f'<div style="border-left:4px solid {colour};padding:10px 14px;'
+            f'margin:8px 0 4px;background:rgba(255,255,255,0.03);'
+            f'border-radius:0 6px 6px 0">'
+            f'<div style="font-size:16px;font-weight:700">'
+            f'{b["short_name"] or b["title"]}{year_label}</div>'
+            f'<div style="font-size:12px;color:#888;margin-top:2px">'
+            f'{b["title"]}</div>'
+            f'<span style="display:inline-block;margin-top:4px;font-size:11px;'
+            f'background:{colour};color:#fff;padding:1px 8px;border-radius:8px">'
+            f'{b["category"]} — {status_label}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # What it says vs what it does
+        col_says, col_does = st.columns(2)
+        with col_says:
+            st.markdown("**What it says it does**")
+            st.markdown(
+                f'<div style="font-size:13px;color:#ccc;border-left:3px solid #27ae60;'
+                f'padding:6px 10px;margin:4px 0">{b["official_purpose"]}</div>',
+                unsafe_allow_html=True,
+            )
+        with col_does:
+            st.markdown("**What it actually does**")
+            st.markdown(
+                f'<div style="font-size:13px;color:#ccc;border-left:3px solid #e94560;'
+                f'padding:6px 10px;margin:4px 0">{b["hidden_impact"]}</div>',
+                unsafe_allow_html=True,
+            )
+
+        # Details accordion
+        with st.expander("Full analysis"):
+            if b.get("key_provisions"):
+                st.markdown("**Key provisions**")
+                for prov in b["key_provisions"].split(". "):
+                    prov = prov.strip().rstrip(".")
+                    if prov:
+                        st.markdown(f"- {prov}")
+
+            if b.get("who_benefits"):
+                st.markdown("**Who benefits**")
+                st.markdown(
+                    f'<div style="font-size:13px;color:#27ae60;border-left:3px solid #27ae60;'
+                    f'padding:6px 10px;margin:4px 0">{b["who_benefits"]}</div>',
+                    unsafe_allow_html=True,
+                )
+
+            if b.get("who_loses"):
+                st.markdown("**Who loses**")
+                st.markdown(
+                    f'<div style="font-size:13px;color:#e94560;border-left:3px solid #e94560;'
+                    f'padding:6px 10px;margin:4px 0">{b["who_loses"]}</div>',
+                    unsafe_allow_html=True,
+                )
+
+            if b.get("criticism"):
+                st.divider()
+                st.markdown("**Independent criticism**")
+                st.markdown(
+                    f'<div style="font-size:13px;color:#ccc;padding:4px 0">{b["criticism"]}</div>',
+                    unsafe_allow_html=True,
+                )
+                if b.get("criticism_source"):
+                    st.caption(f"Sources: {b['criticism_source']}")
+
+            if b.get("defence"):
+                st.divider()
+                st.markdown("**Government defence**")
+                st.markdown(
+                    f'<div style="font-size:13px;color:#aaa;font-style:italic;padding:4px 0">'
+                    f'{b["defence"]}</div>',
+                    unsafe_allow_html=True,
+                )
+
+            if b.get("source_url"):
+                st.markdown(
+                    f'[View legislation source]({b["source_url"]})',
+                )
+
+        st.divider()
+
+
+with tab_bills:
+    build_fine_print_tab()

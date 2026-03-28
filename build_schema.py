@@ -203,6 +203,27 @@ def init_db():
         if _col not in _prom_cols:
             cursor.execute(f"ALTER TABLE promises ADD COLUMN {_col} {_defn}")
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS controversial_bills (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            title           TEXT    NOT NULL,
+            short_name      TEXT,
+            category        TEXT    NOT NULL,
+            year            INTEGER,
+            status          TEXT,
+            official_purpose TEXT,
+            hidden_impact   TEXT,
+            who_benefits    TEXT,
+            who_loses       TEXT,
+            key_provisions  TEXT,
+            criticism       TEXT,
+            criticism_source TEXT,
+            defence         TEXT,
+            source_url      TEXT,
+            added_date      TEXT
+        )
+    ''')
+
     conn.commit()
     conn.close()
     print("Database schema initialised.")
