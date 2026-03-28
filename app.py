@@ -9,6 +9,10 @@ st.set_page_config(page_title="Project GRIT", layout="wide")
 
 DB = "grit_cache.db"
 
+# ── Comparison state ───────────────────────────────────────────────────────────
+if "compare_ids" not in st.session_state:
+    st.session_state.compare_ids = set()
+
 ELECTION_DATE_APPROX = True
 NEXT_ELECTION = datetime.date(2028, 5, 6)
 LAST_ELECTION = datetime.date(2025, 5, 3)
@@ -438,7 +442,7 @@ def profile_expander(name: str, politician_id: int = None, photo_url: str = None
             news_section(politician_id)
 
 
-def politician_grid(df, chamber="representatives"):
+def politician_grid(df, chamber="representatives", tab_key=""):
     days_left = days_until(NEXT_ELECTION)
     cols_per_row = 4
     for i in range(0, len(df), cols_per_row):
@@ -448,9 +452,9 @@ def politician_grid(df, chamber="representatives"):
             if idx >= len(df):
                 break
             row = df.iloc[idx]
+            pid = int(row["id"])
             with col:
                 if row.get("photo_url"):
-                    # Wrapped in a div hidden on mobile via CSS
                     st.markdown(
                         f'<div class="desktop-photo">'
                         f'<img src="{row["photo_url"]}" width="90" '
@@ -474,7 +478,19 @@ def politician_grid(df, chamber="representatives"):
                 heat = int(row.get("heat_score") or 0)
                 pos  = int(row.get("positive_score") or 0)
                 st.markdown(bipolar_bar(heat, pos, compact=True), unsafe_allow_html=True)
-                profile_expander(row["name"], int(row["id"]), photo_url=row.get("photo_url"))
+
+                # Compare checkbox
+                in_compare = pid in st.session_state.compare_ids
+                if st.checkbox(
+                    "⊕ Compare" if not in_compare else "✓ In compare",
+                    key=f"cmp_{tab_key}_{pid}",
+                    value=in_compare,
+                ):
+                    st.session_state.compare_ids.add(pid)
+                else:
+                    st.session_state.compare_ids.discard(pid)
+
+                profile_expander(row["name"], pid, photo_url=row.get("photo_url"))
 
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
@@ -600,9 +616,30 @@ with st.expander("🔍 Find your local representatives by postcode", expanded=Fa
 
 st.divider()
 
+# ── Compare banner (shows when 1+ politicians selected) ───────────────────────
+n_compare = len(st.session_state.compare_ids)
+if n_compare > 0:
+    banner_col, clear_col = st.columns([5, 1])
+    with banner_col:
+        if n_compare == 1:
+            cid = next(iter(st.session_state.compare_ids))
+            cname = query("SELECT name FROM politicians WHERE id=?", (cid,))
+            cname_str = cname.iloc[0]["name"] if not cname.empty else str(cid)
+            st.info(f"⚖️ **1 selected:** {cname_str} — select at least one more to compare.")
+        else:
+            cnames = query(
+                f"SELECT name FROM politicians WHERE id IN ({','.join('?'*n_compare)})",
+                tuple(st.session_state.compare_ids),
+            )["name"].tolist()
+            st.success(f"⚖️ **{n_compare} selected for comparison:** {', '.join(cnames)} — see the **Compare** tab.")
+    with clear_col:
+        if st.button("Clear", key="clear_compare_btn"):
+            st.session_state.compare_ids = set()
+            st.rerun()
+
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab_reps, tab_senate, tab_divs, tab_votes = st.tabs([
-    "House of Reps", "Senate", "Divisions", "Vote Explorer"
+tab_reps, tab_senate, tab_divs, tab_votes, tab_compare = st.tabs([
+    "House of Reps", "Senate", "Divisions", "Vote Explorer", "⚖️ Compare"
 ])
 
 
@@ -686,7 +723,7 @@ def build_mp_tab(chamber: str):
     if state_from_pc and chamber == "senate":
         mps = mps[mps["state"] == state_from_pc]
 
-    politician_grid(mps, chamber)
+    politician_grid(mps, chamber, tab_key=chamber)
     st.caption(f"{len(mps)} shown.")
 
 
@@ -751,7 +788,7 @@ with tab_reps:
             reps_df["attendance_%"] = reps_df.apply(
                 lambda r: f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
                 if r["votes_possible"] > 0 else "—", axis=1)
-            politician_grid(reps_df)
+            politician_grid(reps_df, tab_key="reps_search")
             st.caption(f"{len(reps_df)} shown.")
 
         if is_postcode and electorates:
@@ -906,3 +943,182 @@ with tab_votes:
                 c1.metric("Aye", aye)
                 c2.metric("No", no)
                 st.dataframe(mp_votes, use_container_width=True, hide_index=True)
+
+# ── Compare ───────────────────────────────────────────────────────────────────
+def build_compare_tab():
+    import json as _json
+
+    cids = list(st.session_state.compare_ids)
+
+    if not cids:
+        st.info(
+            "No politicians selected yet.  \n"
+            "Use the **⊕ Compare** checkbox on any card in the "
+            "House of Reps or Senate tabs to add them here."
+        )
+        return
+
+    if len(cids) == 1:
+        cid = cids[0]
+        cname = query("SELECT name FROM politicians WHERE id=?", (cid,))
+        st.info(
+            f"Only **{cname.iloc[0]['name']}** selected — pick at least one more to compare."
+        )
+
+    placeholders = ",".join("?" * len(cids))
+    df = query(f"""
+        SELECT
+            p.id, p.name, p.party, p.electorate, p.state, p.chamber,
+            p.photo_url,
+            p.votes_attended, p.votes_possible,
+            p.rebellions,
+            COALESCE(a.heat_score, 0)      AS heat_score,
+            COALESCE(a.rhetoric_flags, '{{}}') AS flags_json,
+            b.wikipedia_summary,
+            n.headline AS latest_news,
+            n.url      AS news_url,
+            n.published_date AS news_date
+        FROM politicians p
+        LEFT JOIN ai_analysis a ON a.politician_id = p.id
+        LEFT JOIN politician_bio b ON b.politician_id = p.id
+        LEFT JOIN (
+            SELECT politician_id, headline, url, published_date,
+                   ROW_NUMBER() OVER (PARTITION BY politician_id ORDER BY published_date DESC) AS rn
+            FROM politician_news
+        ) n ON n.politician_id = p.id AND n.rn = 1
+        WHERE p.id IN ({placeholders})
+        ORDER BY p.name
+    """, tuple(cids))
+
+    if df.empty:
+        st.warning("Could not load comparison data.")
+        return
+
+    df["positive_score"] = df["flags_json"].apply(
+        lambda x: _json.loads(x).get("positive_score", 0) if x and x != "{}" else 0
+    )
+    df["attendance_pct"] = df.apply(
+        lambda r: round(100 * r["votes_attended"] / r["votes_possible"])
+        if r["votes_possible"] > 0 else None, axis=1
+    )
+    df["attendance_str"] = df["attendance_pct"].apply(
+        lambda v: f"{v}%" if v is not None else "—"
+    )
+
+    # ── Summary metrics table ──────────────────────────────────────────────────
+    st.subheader("At a glance")
+
+    summary_rows = []
+    for _, r in df.iterrows():
+        chamber_label = "Senator" if r["chamber"] == "senate" else "MP"
+        summary_rows.append({
+            "Name":        r["name"],
+            "Role":        chamber_label,
+            "Party":       r["party"],
+            "Electorate":  r["electorate"] or r["state"] or "—",
+            "Attendance":  r["attendance_str"],
+            "Rebellions":  int(r["rebellions"]),
+            "Heat (1-10)": int(r["heat_score"]),
+            "Positive (1-10)": int(r["positive_score"]),
+        })
+    st.dataframe(
+        pd.DataFrame(summary_rows).set_index("Name"),
+        use_container_width=True,
+    )
+
+    # ── Side-by-side detail cards ──────────────────────────────────────────────
+    st.subheader("Detailed comparison")
+    cols = st.columns(len(df))
+    for col, (_, row) in zip(cols, df.iterrows()):
+        with col:
+            # Photo
+            if row.get("photo_url"):
+                st.image(row["photo_url"], width=90)
+
+            # Identity
+            chamber_label = "Senator" if row["chamber"] == "senate" else "MP"
+            location = row["electorate"] or row["state"] or "—"
+            st.markdown(f"### {row['name']}")
+            st.caption(f"{chamber_label} · {row['party']} · {location}")
+
+            st.divider()
+
+            # Attendance bar
+            att = row["attendance_pct"]
+            att_colour = (
+                "#27ae60" if att and att >= 80
+                else "#f5a623" if att and att >= 60
+                else "#e94560"
+            )
+            att_str = row["attendance_str"]
+            st.markdown(
+                f'<div style="margin:4px 0 2px;font-size:12px;color:#aaa">Attendance</div>'
+                f'<div style="font-size:22px;font-weight:700;color:{att_colour}">{att_str}</div>',
+                unsafe_allow_html=True,
+            )
+
+            # Rebellions
+            reb = int(row["rebellions"])
+            reb_colour = "#e94560" if reb >= 5 else "#f5a623" if reb >= 1 else "#27ae60"
+            st.markdown(
+                f'<div style="margin:8px 0 2px;font-size:12px;color:#aaa">Rebellions</div>'
+                f'<div style="font-size:22px;font-weight:700;color:{reb_colour}">{reb}</div>',
+                unsafe_allow_html=True,
+            )
+
+            st.divider()
+
+            # Bipolar heat bar
+            st.markdown(
+                '<div style="font-size:12px;color:#aaa;margin-bottom:4px">AI Score</div>',
+                unsafe_allow_html=True,
+            )
+            heat = int(row["heat_score"])
+            pos  = int(row["positive_score"])
+            st.markdown(bipolar_bar(heat, pos), unsafe_allow_html=True)
+            if heat > 0 or pos > 0:
+                st.markdown(
+                    f'<div style="font-size:11px;color:#888">'
+                    f'🔴 Controversy: {heat}/10 &nbsp; 🟢 Positive: {pos}/10</div>',
+                    unsafe_allow_html=True,
+                )
+
+            # Background
+            if row.get("wikipedia_summary"):
+                st.divider()
+                st.markdown(
+                    '<div style="font-size:12px;color:#aaa;margin-bottom:4px">Background</div>',
+                    unsafe_allow_html=True,
+                )
+                summary = row["wikipedia_summary"]
+                st.caption(summary[:350] + ("…" if len(summary) > 350 else ""))
+
+            # Latest news
+            if row.get("latest_news"):
+                st.divider()
+                st.markdown(
+                    '<div style="font-size:12px;color:#aaa;margin-bottom:4px">Latest news</div>',
+                    unsafe_allow_html=True,
+                )
+                headline = row["latest_news"][:100]
+                date_str = (row.get("news_date") or "")[:10]
+                if row.get("news_url"):
+                    st.markdown(f"[{headline}]({row['news_url']})")
+                else:
+                    st.caption(headline)
+                if date_str:
+                    st.caption(date_str)
+
+            # Remove from compare
+            st.divider()
+            if st.button(
+                f"✕ Remove",
+                key=f"rm_cmp_{int(row['id'])}",
+                help=f"Remove {row['name']} from comparison",
+            ):
+                st.session_state.compare_ids.discard(int(row["id"]))
+                st.rerun()
+
+
+with tab_compare:
+    build_compare_tab()
