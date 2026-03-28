@@ -408,30 +408,53 @@ def build_mp_tab(chamber: str):
         "SELECT DISTINCT party FROM politicians WHERE chamber=? ORDER BY party",
         (chamber,)
     )["party"].tolist()
-    selected_party = st.selectbox("Filter by party", ["All"] + parties, key=f"party_{chamber}")
+
+    filter_col, sort_col = st.columns([2, 2])
+    with filter_col:
+        selected_party = st.selectbox("Filter by party", ["All"] + parties, key=f"party_{chamber}")
+    with sort_col:
+        sort_by = st.selectbox(
+            "Sort by",
+            ["Name (A–Z)", "Rebellions ↓", "Rebellions ↑", "Attendance ↓", "Attendance ↑"],
+            key=f"sort_{chamber}",
+        )
 
     if selected_party == "All":
         mps = query("""
             SELECT id, name, party, electorate, state, photo_url,
                    votes_attended, votes_possible, rebellions
-            FROM politicians WHERE chamber=? ORDER BY name
+            FROM politicians WHERE chamber=?
         """, (chamber,))
     else:
         mps = query("""
             SELECT id, name, party, electorate, state, photo_url,
                    votes_attended, votes_possible, rebellions
-            FROM politicians WHERE chamber=? AND party=? ORDER BY name
+            FROM politicians WHERE chamber=? AND party=?
         """, (chamber, selected_party))
 
     if mps.empty:
         st.info("No data yet. Run: python sync_data.py")
         return
 
-    mps["attendance_%"] = mps.apply(
-        lambda r: f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
-        if r["votes_possible"] > 0 else "—",
+    mps["attendance_num"] = mps.apply(
+        lambda r: 100 * r["votes_attended"] / r["votes_possible"]
+        if r["votes_possible"] > 0 else 0,
         axis=1,
     )
+    mps["attendance_%"] = mps["attendance_num"].apply(
+        lambda v: f"{v:.0f}%" if v > 0 else "—"
+    )
+
+    sort_map = {
+        "Name (A–Z)":     ("name", True),
+        "Rebellions ↓":   ("rebellions", False),
+        "Rebellions ↑":   ("rebellions", True),
+        "Attendance ↓":   ("attendance_num", False),
+        "Attendance ↑":   ("attendance_num", True),
+    }
+    sort_col_name, sort_asc = sort_map[sort_by]
+    mps = mps.sort_values(sort_col_name, ascending=sort_asc)
+
     if state_from_pc and chamber == "senate":
         mps = mps[mps["state"] == state_from_pc]
 
