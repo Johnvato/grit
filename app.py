@@ -164,7 +164,7 @@ def bipolar_bar(controversy: int, positive: int, compact: bool = False) -> str:
     """
     if controversy == 0 and positive == 0:
         return (
-            '<div style="font-size:11px;color:#666;font-style:italic;margin:4px 0">'
+            '<div class="no-info-mobile" style="font-size:11px;color:#666;font-style:italic;margin:4px 0">'
             'Not enough information</div>'
         )
     c_pct = max(0, min(100, controversy * 10))
@@ -370,7 +370,7 @@ def profile_expander(name: str, politician_id: int = None, photo_url: str = None
     if not has_profile and not has_bio and not has_ai:
         return
 
-    with st.expander("Profile, News & AI Analysis"):
+    with st.expander("▶ Profile, News & AI Analysis"):
         # Photo shown on mobile (hidden on desktop via .desktop-photo CSS)
         if photo_url:
             st.markdown(
@@ -460,12 +460,16 @@ def politician_grid(df, chamber="representatives"):
                     )
                 st.markdown(f"**{row['name']}**")
                 location = row.get("state") or row.get("electorate", "")
-                st.caption(
-                    f"{row['party']}  \n"
-                    f"{location}  \n"
-                    f"Attendance: {row.get('attendance_%', '—')}  \n"
-                    f"Rebellions: {int(row['rebellions'])}  \n"
-                    f"⏳ {days_left:,}d"
+                att = row.get("attendance_%", "—")
+                reb = int(row["rebellions"])
+                st.markdown(
+                    f'<div style="font-size:11px;color:#888;line-height:1.4;margin-bottom:4px">'
+                    f'{row["party"]}<br>'
+                    f'{location}<br>'
+                    f'Att: {att} · Reb: {reb}<br>'
+                    f'⏳ {days_left:,}d'
+                    f'</div>',
+                    unsafe_allow_html=True,
                 )
                 heat = int(row.get("heat_score") or 0)
                 pos  = int(row.get("positive_score") or 0)
@@ -476,21 +480,57 @@ def politician_grid(df, chamber="representatives"):
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* Desktop: show grid photo, hide expander photo */
+/* ── Desktop defaults ──────────────────────────────── */
 .desktop-photo { display: block; }
 .mobile-photo  { display: none;  }
 
-/* Mobile: hide grid photo, show expander photo, 2-column grid */
+/* ── Mobile overrides (<640px) ─────────────────────── */
 @media screen and (max-width: 640px) {
+  /* Photos: hide in grid, show inside expander */
   .desktop-photo { display: none !important; }
   .mobile-photo  { display: block !important; }
 
+  /* 2-column grid */
   [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
     min-width: 45% !important;
     max-width: 50% !important;
     flex: 1 1 45% !important;
   }
+
+  /* Smaller name text in cards */
+  [data-testid="stColumn"] p strong {
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Smaller caption text */
+  [data-testid="stColumn"] small,
+  [data-testid="stColumn"] [data-testid="stCaptionContainer"] {
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Compact expander button */
+  [data-testid="stColumn"] [data-testid="stExpander"] summary {
+    font-size: 11px !important;
+    padding: 5px 8px !important;
+    min-height: 0 !important;
+  }
+  [data-testid="stColumn"] [data-testid="stExpander"] summary p {
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Hide "Not enough information" on mobile to save space */
+  .no-info-mobile { display: none !important; }
+
+  /* Tighter column padding */
+  [data-testid="stColumn"] > div {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
 }
+
 /* Tighten card padding */
 [data-testid="stColumn"] { padding: 4px !important; }
 </style>
