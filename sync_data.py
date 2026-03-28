@@ -57,16 +57,18 @@ def sync_politicians(conn):
         m = person.get("latest_member", {})
         name_obj = m.get("name", {})
         full_name = f"{name_obj.get('first', '')} {name_obj.get('last', '')}".strip()
+        photo_url = f"https://www.openaustralia.org.au/images/mpsL/{person['id']}.jpg"
         cursor.execute('''
             INSERT OR REPLACE INTO politicians
-                (id, name, party, electorate, chamber, last_synced)
-            VALUES (?, ?, ?, ?, ?, ?)
+                (id, name, party, electorate, chamber, photo_url, last_synced)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
             person["id"],
             full_name,
             m.get("party", ""),
             m.get("electorate", ""),
             "representatives",
+            photo_url,
             today,
         ))
 

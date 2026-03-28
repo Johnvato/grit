@@ -32,14 +32,14 @@ with tab_mps:
 
     if selected_party == "All":
         mps = query("""
-            SELECT name, party, electorate,
+            SELECT id, name, party, electorate, photo_url,
                    votes_attended, votes_possible, rebellions
             FROM politicians
             ORDER BY name
         """)
     else:
         mps = query("""
-            SELECT name, party, electorate,
+            SELECT id, name, party, electorate, photo_url,
                    votes_attended, votes_possible, rebellions
             FROM politicians
             WHERE party = ?
@@ -54,11 +54,26 @@ with tab_mps:
             if r["votes_possible"] > 0 else "—",
             axis=1,
         )
-        st.dataframe(
-            mps[["name", "party", "electorate", "attendance_%", "rebellions"]],
-            use_container_width=True,
-            hide_index=True,
-        )
+
+        cols_per_row = 4
+        for i in range(0, len(mps), cols_per_row):
+            cols = st.columns(cols_per_row)
+            for j, col in enumerate(cols):
+                idx = i + j
+                if idx >= len(mps):
+                    break
+                row = mps.iloc[idx]
+                with col:
+                    if row["photo_url"]:
+                        col.image(row["photo_url"], width=120)
+                    col.markdown(f"**{row['name']}**")
+                    col.caption(
+                        f"{row['party']}  \n"
+                        f"{row['electorate']}  \n"
+                        f"Attendance: {row['attendance_%']}  \n"
+                        f"Rebellions: {int(row['rebellions'])}"
+                    )
+
         st.caption(f"{len(mps)} members shown.")
 
 # ── Divisions tab ─────────────────────────────────────────────────────────────
@@ -106,10 +121,17 @@ with tab_votes:
         selected_mp = st.selectbox("Select an MP", mp_names)
 
         mp_row = query(
-            "SELECT id FROM politicians WHERE name = ?", (selected_mp,)
+            "SELECT id, photo_url, party, electorate FROM politicians WHERE name = ?", (selected_mp,)
         )
         if not mp_row.empty:
             mp_id = int(mp_row.iloc[0]["id"])
+            ph_col, info_col = st.columns([1, 3])
+            with ph_col:
+                if mp_row.iloc[0]["photo_url"]:
+                    st.image(mp_row.iloc[0]["photo_url"], width=120)
+            with info_col:
+                st.markdown(f"**{selected_mp}**")
+                st.caption(f"{mp_row.iloc[0]['party']} — {mp_row.iloc[0]['electorate']}")
             mp_votes = query("""
                 SELECT d.date, d.name AS division, v.vote
                 FROM votes v

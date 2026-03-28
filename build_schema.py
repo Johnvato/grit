@@ -12,12 +12,18 @@ def init_db():
             party       TEXT,
             electorate  TEXT,
             chamber     TEXT,
+            photo_url   TEXT,
             rebellions  INTEGER DEFAULT 0,
             votes_attended INTEGER DEFAULT 0,
             votes_possible INTEGER DEFAULT 0,
             last_synced TEXT
         )
     ''')
+
+    # Migrate existing DBs that predate the photo_url column
+    existing = [r[1] for r in cursor.execute("PRAGMA table_info(politicians)").fetchall()]
+    if "photo_url" not in existing:
+        cursor.execute("ALTER TABLE politicians ADD COLUMN photo_url TEXT")
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS divisions (
