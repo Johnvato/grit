@@ -144,6 +144,43 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS politician_news (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            politician_id   INTEGER,
+            headline        TEXT,
+            url             TEXT UNIQUE,
+            source          TEXT,
+            published_date  TEXT,
+            summary         TEXT,
+            fetched_at      TEXT,
+            FOREIGN KEY (politician_id) REFERENCES politicians(id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS politician_bio (
+            politician_id       INTEGER PRIMARY KEY,
+            wikipedia_summary   TEXT,
+            wikipedia_url       TEXT,
+            offices_held        TEXT,
+            last_updated        TEXT,
+            FOREIGN KEY (politician_id) REFERENCES politicians(id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ai_analysis (
+            politician_id   INTEGER PRIMARY KEY,
+            sentiment       TEXT,
+            heat_score      INTEGER,
+            summary         TEXT,
+            rhetoric_flags  TEXT,
+            last_analyzed   TEXT,
+            FOREIGN KEY (politician_id) REFERENCES politicians(id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
     print("Database schema initialised.")

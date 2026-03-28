@@ -4,6 +4,10 @@ import os
 import time
 import requests
 
+from scrapers.news import sync_all_news
+from scrapers.wikipedia import sync_all_bios
+from scrapers.ai_analysis import sync_all_analyses
+
 TVFY_BASE = "https://theyvoteforyou.org.au/api/v1"
 
 
@@ -234,6 +238,15 @@ def sync_daily_data():
         sync_divisions(conn, days_back=30)
     finally:
         conn.close()
+
+    print("Scraping news...")
+    sync_all_news(days_back=7)
+
+    print("Fetching Wikipedia bios...")
+    sync_all_bios()
+
+    print("Running AI analysis...")
+    sync_all_analyses()
 
     print("Sync complete.")
 

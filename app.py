@@ -164,44 +164,132 @@ def electorate_card(electorate: str):
             )
 
 
-def profile_expander(name: str):
-    prof = query("SELECT * FROM profiles WHERE name = ?", (name,))
-    if prof.empty:
+HEAT_COLOURS = ["#27ae60","#2ecc71","#f1c40f","#f39c12","#e67e22","#e74c3c","#c0392b","#922b21","#7b241c","#641e16"]
+
+def heat_badge(score: int) -> str:
+    score = max(1, min(10, score))
+    colour = HEAT_COLOURS[score - 1]
+    label = ["Very Low","Low","Low-Mod","Moderate","Mod-High","High","High","Very High","Very High","Extreme"][score - 1]
+    return f'<span style="background:{colour};color:#fff;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700">🌡 {score}/10 — {label}</span>'
+
+
+def ai_analysis_section(politician_id: int):
+    ai = query("SELECT * FROM ai_analysis WHERE politician_id = ?", (politician_id,))
+    if ai.empty:
         return
-    p = prof.iloc[0]
+    a = ai.iloc[0]
+    flags_raw = a.get("rhetoric_flags") or "{}"
+    try:
+        import json
+        flags_data = json.loads(flags_raw)
+        rhetoric_flags = flags_data.get("rhetoric_flags", [])
+        positive_notes = flags_data.get("positive_notes", [])
+    except Exception:
+        rhetoric_flags, positive_notes = [], []
 
-    with st.expander("Profile & Risk Assessment"):
-        if p["employment_history"]:
-            st.markdown(f"**Employment background**  \n{p['employment_history']}")
-        if p["notes"]:
-            st.markdown(f"**Overview**  \n{p['notes']}")
+    st.markdown("**AI Analysis** *(updated nightly)*")
+    cols = st.columns([2, 1])
+    with cols[0]:
+        st.markdown(a["summary"] or "")
+    with cols[1]:
+        st.markdown(heat_badge(int(a["heat_score"] or 1)), unsafe_allow_html=True)
+        st.caption(f"Sentiment: {a['sentiment'] or 'neutral'}")
 
-        cols = st.columns(2)
-        with cols[0]:
-            if p["media_positive"]:
-                st.markdown(f"**Media (+)**  \n{p['media_positive']}")
-            if p["integrity_notes"]:
-                st.markdown(f"**Integrity record**  \n{p['integrity_notes']}")
-            if p["funding_info"]:
-                st.markdown(f"**Funding**  \n{p['funding_info']}")
-        with cols[1]:
-            if p["media_negative"]:
-                st.markdown(f"**Media (−)**  \n{p['media_negative']}")
-            if p["risk_assessment"]:
-                st.markdown(
-                    f"**Risk assessment**  \n"
-                    f"{risk_badge(p['risk_assessment'])}  \n"
-                    f"{p['risk_assessment']}",
-                    unsafe_allow_html=True,
-                )
-            if p["funding_risk"]:
-                st.markdown(f"**Funding risk**  \n{p['funding_risk']}")
-        if p["media_veracity"]:
-            st.markdown(f"**Media veracity**  \n{p['media_veracity']}")
-        if p["term_end"]:
-            st.markdown(f"**Term / re-election:** {p['term_end']}")
-        if p["postal_address"]:
-            st.markdown(f"**Electorate office:** {p['postal_address']}")
+    if rhetoric_flags:
+        st.markdown("**⚠️ Flagged concerns:**")
+        for flag in rhetoric_flags:
+            st.markdown(f"- {flag}")
+    if positive_notes:
+        st.markdown("**✅ Positive notes:**")
+        for note in positive_notes:
+            st.markdown(f"- {note}")
+    st.caption(f"Last analysed: {a['last_analyzed'] or '—'}")
+
+
+def news_section(politician_id: int, limit: int = 8):
+    news = query('''
+        SELECT headline, url, source, published_date
+        FROM politician_news
+        WHERE politician_id = ?
+        ORDER BY published_date DESC, id DESC
+        LIMIT ?
+    ''', (politician_id, limit))
+    if news.empty:
+        return
+    st.markdown("**Recent news:**")
+    for _, row in news.iterrows():
+        date = row["published_date"] or ""
+        source = row["source"] or ""
+        st.markdown(
+            f'<div style="margin:4px 0;font-size:13px">'
+            f'<a href="{row["url"]}" target="_blank">{row["headline"]}</a>'
+            f'<span style="color:#888;font-size:11px"> — {source} {date}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+
+def profile_expander(name: str, politician_id: int = None):
+    prof = query("SELECT * FROM profiles WHERE name = ?", (name,))
+    bio  = query("SELECT * FROM politician_bio WHERE politician_id = ?", (politician_id,)) if politician_id else None
+
+    has_profile = not prof.empty
+    has_bio     = bio is not None and not bio.empty
+    has_ai      = politician_id is not None
+
+    if not has_profile and not has_bio and not has_ai:
+        return
+
+    with st.expander("Profile, News & AI Analysis"):
+        # ── Wikipedia bio ────────────────────────────────────────────────────
+        if has_bio and bio.iloc[0]["wikipedia_summary"]:
+            b = bio.iloc[0]
+            st.markdown("**Background:**")
+            st.markdown(b["wikipedia_summary"][:600] + ("…" if len(b["wikipedia_summary"]) > 600 else ""))
+            if b["wikipedia_url"]:
+                st.caption(f"[Read more on Wikipedia →]({b['wikipedia_url']})")
+
+        # ── Manual profile (from CSV) ────────────────────────────────────────
+        if has_profile:
+            p = prof.iloc[0]
+            if p["employment_history"]:
+                st.markdown(f"**Employment background**  \n{p['employment_history']}")
+            if p["notes"]:
+                st.markdown(f"**Overview**  \n{p['notes']}")
+
+            cols = st.columns(2)
+            with cols[0]:
+                if p["media_positive"]:
+                    st.markdown(f"**Media (+)**  \n{p['media_positive']}")
+                if p["integrity_notes"]:
+                    st.markdown(f"**Integrity record**  \n{p['integrity_notes']}")
+                if p["funding_info"]:
+                    st.markdown(f"**Funding**  \n{p['funding_info']}")
+            with cols[1]:
+                if p["media_negative"]:
+                    st.markdown(f"**Media (−)**  \n{p['media_negative']}")
+                if p["risk_assessment"]:
+                    st.markdown(
+                        f"**Risk assessment**  \n"
+                        f"{risk_badge(p['risk_assessment'])}  \n"
+                        f"{p['risk_assessment']}",
+                        unsafe_allow_html=True,
+                    )
+                if p["funding_risk"]:
+                    st.markdown(f"**Funding risk**  \n{p['funding_risk']}")
+            if p["media_veracity"]:
+                st.markdown(f"**Media veracity**  \n{p['media_veracity']}")
+            if p["term_end"]:
+                st.markdown(f"**Term / re-election:** {p['term_end']}")
+            if p["postal_address"]:
+                st.markdown(f"**Electorate office:** {p['postal_address']}")
+
+        # ── AI analysis ──────────────────────────────────────────────────────
+        if politician_id:
+            st.divider()
+            ai_analysis_section(politician_id)
+            st.divider()
+            news_section(politician_id)
 
 
 def politician_grid(df, chamber="representatives"):
@@ -226,7 +314,7 @@ def politician_grid(df, chamber="representatives"):
                     f"Rebellions: {int(row['rebellions'])}  \n"
                     f"⏳ {days_left:,}d"
                 )
-                profile_expander(row["name"])
+                profile_expander(row["name"], int(row["id"]))
 
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
@@ -513,7 +601,7 @@ with tab_votes:
                 m3.metric("Days to election", f"{days_left:,}")
                 m4.metric("Mandate elapsed", f"{mandate_pct}%")
 
-            profile_expander(selected_mp)
+            profile_expander(selected_mp, mp_id)
 
             mp_votes = query("""
                 SELECT d.date, d.name AS division, d.house, v.vote
