@@ -2,6 +2,8 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import datetime
+import folium
+from streamlit_folium import st_folium
 
 st.set_page_config(page_title="Project GRIT", layout="wide")
 
@@ -63,6 +65,103 @@ def risk_badge(risk_text: str) -> str:
         if level.lower() in risk_text.lower():
             return f'<span style="background:{colour};color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">{level} Risk</span>'
     return ""
+
+
+MARGIN_COLOURS = {
+    "Highly Marginal": "#e94560",
+    "Marginal":        "#f5a623",
+    "Fairly Safe":     "#3498db",
+    "Safe":            "#27ae60",
+}
+
+PARTY_COLOURS = {
+    "ALP": "#e53935",
+    "LNP": "#1565c0", "LP": "#1565c0", "NP": "#1565c0",
+    "GRN": "#2e7d32",
+    "IND": "#8e24aa",
+}
+
+
+def electorate_card(electorate: str):
+    """Show margin classification + interactive map for an electorate."""
+    margin_df = query(
+        "SELECT * FROM electorate_margins WHERE division = ?", (electorate,)
+    )
+    places_df = query(
+        "SELECT lat, lng, name, suburb FROM polling_places WHERE division = ? AND lat IS NOT NULL",
+        (electorate,)
+    )
+
+    if margin_df.empty and places_df.empty:
+        return
+
+    st.markdown(f"#### Electorate: {electorate}")
+    col_margin, col_map = st.columns([1, 2])
+
+    with col_margin:
+        if not margin_df.empty:
+            m = margin_df.iloc[0]
+            mtype  = m["margin_type"]
+            colour = MARGIN_COLOURS.get(mtype, "#aaa")
+            party  = m["winning_party"]
+            p_col  = PARTY_COLOURS.get(party, "#555")
+
+            st.markdown(
+                f"""
+                <div style="background:#1a1a2e;border-radius:10px;padding:16px;margin-bottom:8px">
+                  <div style="color:#aaa;font-size:12px;text-transform:uppercase;letter-spacing:1px">
+                    2025 Result
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px;margin:8px 0">
+                    <span style="background:{p_col};color:#fff;padding:3px 10px;
+                                 border-radius:4px;font-weight:700;font-size:14px">{party}</span>
+                    <span style="background:{colour};color:#fff;padding:3px 10px;
+                                 border-radius:4px;font-weight:600;font-size:13px">{mtype}</span>
+                  </div>
+                  <div style="color:#fff;font-size:28px;font-weight:700;line-height:1">
+                    {m['margin_pct']:.1f}%
+                  </div>
+                  <div style="color:#aaa;font-size:12px">margin</div>
+                  <hr style="border-color:#333;margin:10px 0">
+                  <div style="color:#ddd;font-size:13px">
+                    ALP: {m['alp_pct']:.1f}% &nbsp;|&nbsp; Coalition: {m['coalition_pct']:.1f}%
+                  </div>
+                  <div style="color:#aaa;font-size:12px">
+                    Swing: {m['swing']:+.1f}% &nbsp;|&nbsp; {int(m['total_votes']):,} votes
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    with col_map:
+        if not places_df.empty:
+            centre_lat = places_df["lat"].mean()
+            centre_lng = places_df["lng"].mean()
+            party      = margin_df.iloc[0]["winning_party"] if not margin_df.empty else "IND"
+            tile_colour = PARTY_COLOURS.get(party, "#555")
+
+            m_map = folium.Map(
+                location=[centre_lat, centre_lng],
+                zoom_start=10,
+                tiles="CartoDB positron",
+            )
+            for _, p in places_df.iterrows():
+                folium.CircleMarker(
+                    location=[p["lat"], p["lng"]],
+                    radius=5,
+                    color=tile_colour,
+                    fill=True,
+                    fill_color=tile_colour,
+                    fill_opacity=0.7,
+                    tooltip=f"{p['name']} — {p['suburb']}",
+                ).add_to(m_map)
+
+            st_folium(m_map, height=280, use_container_width=True)
+            st.caption(
+                f"{len(places_df)} polling places shown. "
+                f"[View AEC boundary map →](https://electorate.aec.gov.au/)"
+            )
 
 
 def profile_expander(name: str):
@@ -197,6 +296,9 @@ with st.expander("🔍 Find your local representatives by postcode", expanded=Fa
                     st.markdown("**Your House of Reps MP(s):**")
                     for _, rep in local_reps.iterrows():
                         st.markdown(f"- {rep['name']} *(_{rep['party']}_, {rep['electorate']})*")
+                st.divider()
+                for elec in sorted(electorates_for_pc):
+                    electorate_card(elec)
             else:
                 st.markdown(
                     "**Find your House of Reps MP:**  \n"
@@ -298,6 +400,11 @@ with tab_reps:
                 if r["votes_possible"] > 0 else "—", axis=1)
             politician_grid(reps_df)
             st.caption(f"{len(reps_df)} shown.")
+
+        if is_postcode and electorates:
+            st.divider()
+            for elec in sorted(electorates):
+                electorate_card(elec)
     else:
         build_mp_tab("representatives")
 

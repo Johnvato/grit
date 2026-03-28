@@ -117,42 +117,131 @@ def init_db():
         if col not in existing_cols:
             cursor.execute(f"ALTER TABLE politicians ADD COLUMN {col} {defn}")
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS polling_places (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            division    TEXT,
+            state       TEXT,
+            name        TEXT,
+            suburb      TEXT,
+            postcode    TEXT,
+            lat         REAL,
+            lng         REAL
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS electorate_margins (
+            division        TEXT PRIMARY KEY,
+            state           TEXT,
+            winning_party   TEXT,
+            alp_pct         REAL,
+            coalition_pct   REAL,
+            margin_pct      REAL,
+            margin_type     TEXT,
+            swing           REAL,
+            total_votes     INTEGER
+        )
+    ''')
+
     conn.commit()
     conn.close()
     print("Database schema initialised.")
-    sync_postcode_electorates()
+    sync_aec_data()
 
 
-def sync_postcode_electorates():
-    """Download AEC polling place data to build postcode → electorate mapping."""
-    url = "https://results.aec.gov.au/31496/Website/Downloads/GeneralPollingPlacesDownload-31496.csv"
+AEC_POLLING_URL = "https://results.aec.gov.au/31496/Website/Downloads/GeneralPollingPlacesDownload-31496.csv"
+AEC_TPP_URL     = "https://results.aec.gov.au/31496/Website/Downloads/HouseTppByDivisionDownload-31496.csv"
+
+
+def margin_type(pct: float) -> str:
+    if pct < 2:   return "Highly Marginal"
+    if pct < 6:   return "Marginal"
+    if pct < 10:  return "Fairly Safe"
+    return "Safe"
+
+
+def sync_aec_data():
+    """Download AEC polling places + TPP results and populate reference tables."""
+    conn = sqlite3.connect("grit_cache.db")
+    c = conn.cursor()
+
+    # ── Polling places (postcode→electorate + coordinates) ─────────────────
     try:
-        print("Syncing postcode → electorate map from AEC...")
-        r = requests.get(url, timeout=30)
+        print("Syncing AEC polling places...")
+        r = requests.get(AEC_POLLING_URL, timeout=30)
         r.raise_for_status()
-        lines = r.text.splitlines()
-        rows = list(csv.DictReader(lines[1:]))   # skip event-metadata header line
+        rows = list(csv.DictReader(r.text.splitlines()[1:]))
 
-        mapping = {}
+        c.execute("DELETE FROM polling_places")
+        postcode_map = {}
         for row in rows:
             pc  = row.get("PremisesPostCode", "").strip()
             div = row.get("DivisionNm", "").strip()
-            if pc and div:
-                mapping.setdefault(pc, set()).add(div)
+            lat = row.get("Latitude", "").strip()
+            lng = row.get("Longitude", "").strip()
+            if not (lat and lng and div):
+                continue
+            try:
+                c.execute('''
+                    INSERT INTO polling_places (division, state, name, suburb, postcode, lat, lng)
+                    VALUES (?,?,?,?,?,?,?)
+                ''', (
+                    div,
+                    row.get("State", "").strip(),
+                    row.get("PollingPlaceNm", "").strip(),
+                    row.get("PremisesSuburb", "").strip(),
+                    pc,
+                    float(lat), float(lng),
+                ))
+                if pc and div:
+                    postcode_map.setdefault(pc, set()).add(div)
+            except (ValueError, Exception):
+                continue
 
-        conn = sqlite3.connect("grit_cache.db")
-        c = conn.cursor()
-        for pc, divs in mapping.items():
+        for pc, divs in postcode_map.items():
             for div in divs:
-                c.execute(
-                    "INSERT OR IGNORE INTO postcode_electorates VALUES (?,?)",
-                    (pc, div)
-                )
+                c.execute("INSERT OR IGNORE INTO postcode_electorates VALUES (?,?)", (pc, div))
+
         conn.commit()
-        conn.close()
-        print(f"  {sum(len(v) for v in mapping.values())} postcode→electorate records loaded.")
+        print(f"  {len(rows)} polling places loaded, {sum(len(v) for v in postcode_map.values())} postcode mappings.")
     except Exception as e:
-        print(f"  Warning: could not sync postcode data: {e}")
+        print(f"  Warning: polling places sync failed: {e}")
+
+    # ── TPP margins ────────────────────────────────────────────────────────
+    try:
+        print("Syncing AEC election margins...")
+        r = requests.get(AEC_TPP_URL, timeout=30)
+        r.raise_for_status()
+        rows = list(csv.DictReader(r.text.splitlines()[1:]))
+
+        c.execute("DELETE FROM electorate_margins")
+        for row in rows:
+            alp_pct  = float(row.get("Australian Labor Party Percentage", 0) or 0)
+            coal_pct = float(row.get("Liberal/National Coalition Percentage", 0) or 0)
+            winner   = row.get("PartyAb", "").strip()
+            win_pct  = max(alp_pct, coal_pct)
+            margin   = round(win_pct - 50, 2)
+            c.execute('''
+                INSERT OR REPLACE INTO electorate_margins
+                    (division, state, winning_party, alp_pct, coalition_pct,
+                     margin_pct, margin_type, swing, total_votes)
+                VALUES (?,?,?,?,?,?,?,?,?)
+            ''', (
+                row.get("DivisionNm", "").strip(),
+                row.get("StateAb", "").strip(),
+                winner,
+                alp_pct, coal_pct, margin,
+                margin_type(margin),
+                float(row.get("Swing", 0) or 0),
+                int(row.get("TotalVotes", 0) or 0),
+            ))
+        conn.commit()
+        print(f"  {len(rows)} electorate margins loaded.")
+    except Exception as e:
+        print(f"  Warning: margins sync failed: {e}")
+
+    conn.close()
 
 
 if __name__ == "__main__":
