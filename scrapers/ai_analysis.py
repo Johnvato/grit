@@ -1,6 +1,7 @@
 """
-OpenAI-powered nightly analysis — reads accumulated news + profile data
-and generates a heat score, sentiment, and rhetoric vs reality flags.
+Gemini-powered nightly analysis — reads accumulated news and generates
+a heat score, sentiment rating, and rhetoric vs reality flags per politician.
+Uses Google Gemini Flash (free tier: 1,500 req/day).
 """
 import datetime
 import sqlite3
@@ -8,18 +9,17 @@ import json
 import os
 
 try:
-    from openai import OpenAI
-    HAS_OPENAI = True
+    import google.generativeai as genai
+    HAS_GEMINI = True
 except ImportError:
-    HAS_OPENAI = False
+    HAS_GEMINI = False
 
 
-SYSTEM_PROMPT = """You are an independent political integrity analyst for GRIT — 
-an Australian political truth engine. You are factual, non-partisan, and evidence-based.
-Your job is to assess an Australian politician's current media standing based solely 
-on the news headlines provided. You are NOT influenced by political affiliation.
-
-Respond ONLY with valid JSON — no markdown, no explanation outside the JSON."""
+SYSTEM_PROMPT = (
+    "You are an independent political integrity analyst for GRIT — "
+    "an Australian political truth engine. You are factual, non-partisan, and evidence-based. "
+    "Respond ONLY with valid JSON — no markdown, no explanation outside the JSON."
+)
 
 USER_PROMPT = """Analyse the following recent news headlines about {name} ({party}, {chamber}):
 
@@ -27,26 +27,37 @@ USER_PROMPT = """Analyse the following recent news headlines about {name} ({part
 
 Provide a JSON object with exactly these keys:
 - "sentiment": one of "positive", "negative", "mixed", "neutral"
-- "heat_score": integer 1-10 (1=no scrutiny, 10=major controversy/scandal)  
+- "heat_score": integer 1-10 (1=no scrutiny, 10=major controversy/scandal)
 - "summary": 2-3 sentence assessment of their current public standing
-- "rhetoric_flags": list of strings, each a specific concern, inconsistency, or integrity issue 
-  found in the headlines (empty list if none)
-- "positive_notes": list of strings, each a notable achievement or positive mention (empty list if none)"""
+- "rhetoric_flags": list of strings — specific concerns, inconsistencies or integrity issues in the headlines (empty list if none)
+- "positive_notes": list of strings — notable achievements or positive mentions (empty list if none)"""
 
 
-def get_openai_client():
-    key = os.environ.get("OPENAI_API_KEY")
-    if not key:
-        try:
-            import tomllib
-            with open(".streamlit/secrets.toml", "rb") as f:
-                secrets = tomllib.load(f)
-            key = secrets.get("api_keys", {}).get("OPENAI_API_KEY", "")
-        except Exception:
-            pass
-    if not key or not HAS_OPENAI:
+def get_gemini_key() -> str | None:
+    key = os.environ.get("GEMINI_API_KEY")
+    if key:
+        return key
+    try:
+        import tomllib
+        with open(".streamlit/secrets.toml", "rb") as f:
+            secrets = tomllib.load(f)
+        return secrets.get("api_keys", {}).get("GEMINI_API_KEY", "")
+    except Exception:
         return None
-    return OpenAI(api_key=key)
+
+
+def get_model():
+    if not HAS_GEMINI:
+        return None
+    key = get_gemini_key()
+    if not key or key.startswith("your-"):
+        return None
+    genai.configure(api_key=key)
+    return genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        system_instruction=SYSTEM_PROMPT,
+        generation_config={"temperature": 0.2, "max_output_tokens": 600},
+    )
 
 
 def analyse_politician(
@@ -57,21 +68,19 @@ def analyse_politician(
     chamber: str,
     force: bool = False,
 ) -> bool:
-    client = get_openai_client()
-    if not client:
+    model = get_model()
+    if not model:
         return False
 
     c = conn.cursor()
     today = datetime.date.today().isoformat()
 
-    # Skip if analysed within 24h (unless forced)
     if not force:
         c.execute("SELECT last_analyzed FROM ai_analysis WHERE politician_id = ?", (politician_id,))
         row = c.fetchone()
         if row and row[0] == today:
             return False
 
-    # Get recent news headlines
     c.execute('''
         SELECT headline, source, published_date FROM politician_news
         WHERE politician_id = ?
@@ -89,18 +98,17 @@ def analyse_politician(
     )
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": USER_PROMPT.format(
-                    name=name, party=party, chamber=chamber, headlines=headlines
-                )},
-            ],
-            temperature=0.2,
-            max_tokens=600,
+        response = model.generate_content(
+            USER_PROMPT.format(
+                name=name, party=party, chamber=chamber, headlines=headlines
+            )
         )
-        raw = response.choices[0].message.content.strip()
+        raw = response.text.strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
         data = json.loads(raw)
 
         c.execute('''
@@ -113,8 +121,8 @@ def analyse_politician(
             int(data.get("heat_score", 1)),
             data.get("summary", ""),
             json.dumps({
-                "rhetoric_flags":  data.get("rhetoric_flags", []),
-                "positive_notes":  data.get("positive_notes", []),
+                "rhetoric_flags": data.get("rhetoric_flags", []),
+                "positive_notes": data.get("positive_notes", []),
             }),
             today,
         ))
@@ -122,19 +130,25 @@ def analyse_politician(
         return True
 
     except Exception as e:
-        print(f"    AI analysis failed for {name}: {e}")
+        print(f"    Analysis failed for {name}: {e}")
         return False
 
 
 def sync_all_analyses(db_path: str = "grit_cache.db"):
+    model = get_model()
+    if not model:
+        print("  Gemini key not configured — skipping AI analysis.")
+        print("  Add GEMINI_API_KEY to .streamlit/secrets.toml")
+        print("  Get a free key at: https://aistudio.google.com/app/apikey")
+        return
+
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     c.execute("SELECT id, name, party, chamber FROM politicians ORDER BY name")
     politicians = c.fetchall()
-    print(f"  Running AI analysis for {len(politicians)} politicians...")
+    print(f"  Running Gemini analysis for {len(politicians)} politicians...")
 
-    done = 0
-    skipped = 0
+    done = skipped = 0
     for pid, name, party, chamber in politicians:
         result = analyse_politician(conn, pid, name, party or "", chamber or "")
         if result:
@@ -143,4 +157,4 @@ def sync_all_analyses(db_path: str = "grit_cache.db"):
             skipped += 1
 
     conn.close()
-    print(f"  AI analysis complete — {done} analysed, {skipped} skipped (no news / already done today).")
+    print(f"  Analysis complete — {done} analysed, {skipped} skipped.")
