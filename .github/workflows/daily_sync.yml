@@ -1,0 +1,30 @@
+name: Daily Data Sync
+
+on:
+  schedule:
+    - cron: '0 13 * * *'  # Runs daily at 1pm UTC (midnight AEST)
+  workflow_dispatch:       # Allows manual trigger from GitHub UI
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run sync script
+        run: python sync_data.py
+
+      - name: Commit updated database
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'bot@noreply.github.com'
+          git add grit_cache.db
+          git commit -m "Automated database sync" || exit 0
+          git push
