@@ -842,10 +842,10 @@ if n_compare > 0:
             st.rerun()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-(tab_reps, tab_senate, tab_indep, tab_divs, tab_votes,
- tab_compare, tab_promises, tab_bills, tab_revolving, tab_media) = st.tabs([
-    "House of Reps", "Senate", "Independents", "Divisions", "Vote Explorer",
-    "Compare", "Promises", "False Promises", "Revolving Door", "Media",
+(tab_reps, tab_senate, tab_indep, tab_divs, tab_bills, tab_votes,
+ tab_compare, tab_promises, tab_revolving, tab_media) = st.tabs([
+    "House of Reps", "Senate", "Independents", "Divisions", "False Divisions",
+    "Vote Explorer", "Compare", "Promises", "Revolving Door", "Media",
 ])
 
 
@@ -1134,12 +1134,13 @@ sidelined.
 
 # ── Divisions ─────────────────────────────────────────────────────────────────
 with tab_divs:
-    st.subheader("Recent Divisions")
+    st.subheader("Divisions")
     st.caption(
-        "A 'division' is a formal vote in Parliament where members are counted for or against. "
-        "Divisions decide whether bills become law, whether motions pass, and how public money is spent. "
-        "This tab shows recent divisions from both chambers — select one to see how each member voted "
-        "and which bills were at stake."
+        "A 'division' is the moment of truth in Parliament — members stand to be counted for "
+        "or against. This is where rhetoric meets reality. Every promise, every talking point, "
+        "every media appearance is measured against how a politician actually votes when it counts. "
+        "Select a division below to see who voted which way, then cross-reference with the "
+        "False Divisions tab to examine whether the legislation deserved the vote it received."
     )
 
     house_filter = st.radio(
@@ -1565,14 +1566,52 @@ IMPACT_COLOURS = {
 }
 
 def build_fine_print_tab():
-    st.subheader("False Promises")
+    st.subheader("False Divisions")
     st.caption(
-        "Legislation often sounds reasonable on the surface — but the detail can tell a "
-        "different story. This section highlights bills and policies where the stated purpose "
-        "masks provisions that disproportionately benefit one group at the expense of another. "
-        "Each entry breaks down: what the bill claims to do, what it actually does, "
-        "who benefits, who loses, and what independent critics have said."
+        "Some legislation passes Parliament with bipartisan support and minimal debate — "
+        "yet contains provisions that quietly serve narrow interests. These are the false "
+        "divisions: votes that look like governance but may be the product of sustained "
+        "lobbying, industry access, and legislative drafting shaped outside the public eye. "
+        "Each entry below breaks down what the bill claims to do versus what it actually "
+        "does, who benefits, who loses, and what independent analysis has revealed."
     )
+
+    st.markdown("""
+**How lobbying shapes legislation in Australia**
+
+The path from industry interest to law is well-established and largely legal:
+
+1. **Access** — Lobbyists meet with ministers, advisers, and departmental officials to
+   present their position. Australia's federal lobbyist register is public, but
+   'in-house' lobbyists (employed directly by corporations) are exempt from registration.
+   A 2023 Grattan Institute study found that ministers held more meetings with industry
+   representatives than with community groups by a ratio of 4:1.
+
+2. **Drafting influence** — Industry groups submit detailed legislative amendments during
+   consultation periods. These submissions are often adopted wholesale. FOI requests have
+   revealed cases where bill text was drafted by industry lawyers and submitted through
+   ministerial offices with minimal modification.
+
+3. **Revolving door** — Former ministers and senior advisers become lobbyists, carrying
+   their political networks and inside knowledge into the private sector (see the
+   Revolving Door tab). This creates an informal channel of influence that operates
+   outside the formal lobbying register.
+
+4. **Political donations** — Companies and industry associations donate to both major
+   parties simultaneously, ensuring access regardless of who governs. Donation disclosure
+   thresholds in Australia ($16,900 at federal level) are among the highest in the OECD,
+   meaning many donations are never publicly disclosed.
+
+5. **Committee capture** — Parliamentary committees that scrutinise legislation often
+   receive the majority of their submissions from the industries being regulated.
+   Resource constraints mean committee secretariats may rely heavily on industry-provided
+   technical analysis.
+
+None of this is illegal. That is precisely the point — the influence operates within
+the system, making it harder to identify and challenge.
+""")
+
+    st.divider()
 
     bills = query("SELECT * FROM controversial_bills ORDER BY year DESC, title")
     if bills.empty:
