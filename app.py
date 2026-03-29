@@ -154,10 +154,7 @@ def electorate_card(electorate: str):
                     tooltip=f"{p['name']} — {p['suburb']}",
                 ).add_to(m_map)
 
-            try:
-                st_folium(m_map, height=280, use_container_width=True)
-            except Exception:
-                st_folium(m_map, height=280, width=400)
+            st_folium(m_map, height=280, width=500, returned_objects=[])
             st.caption(
                 f"{len(places_df)} polling places shown. "
                 f"[View AEC boundary map →](https://electorate.aec.gov.au/)"
