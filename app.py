@@ -390,10 +390,69 @@ def voting_record_section(politician_id: int, party: str, chamber: str):
                         )
 
 
+def _clean_bio(wiki_text: str, name: str, party: str, chamber: str,
+               electorate: str, state: str) -> str:
+    """
+    Build a concise, readable bio. Use Wikipedia text if substantive,
+    otherwise generate a short intro from structured data.
+    """
+    role = "Senator" if chamber == "senate" else "MP"
+    location = electorate or state or ""
+
+    # Build a structured intro line
+    first_name = name.split()[0]
+    if role == "Senator":
+        intro = f"{name} is a {party} {role} for {state}."
+    else:
+        intro = f"{name} is a {party} {role} for the Division of {location}."
+
+    if not wiki_text:
+        return intro
+
+    # Strip unhelpful generic openers and replace with our cleaner one
+    skip_phrases = [
+        f"{name} is an Australian politician",
+        f"{first_name} is an Australian politician",
+        "is an Australian politician.",
+        "is a member of the Australian Parliament",
+    ]
+    cleaned = wiki_text
+    for phrase in skip_phrases:
+        if phrase.lower() in cleaned[:150].lower():
+            # Find the end of the first sentence and keep everything after
+            first_dot = cleaned.find(". ", 1)
+            if first_dot > 0 and first_dot < 200:
+                remaining = cleaned[first_dot + 2:].strip()
+                if remaining:
+                    cleaned = intro + " " + remaining
+                else:
+                    cleaned = intro
+            else:
+                cleaned = intro
+            break
+    else:
+        # Wikipedia text looks substantive — prepend our intro
+        if not cleaned.startswith(name):
+            cleaned = intro + " " + cleaned
+
+    # Trim to reasonable length
+    if len(cleaned) > 600:
+        cut = cleaned[:600].rfind(". ")
+        if cut > 200:
+            cleaned = cleaned[:cut + 1]
+        else:
+            cleaned = cleaned[:600] + "…"
+
+    return cleaned
+
+
 def profile_expander(name: str, politician_id: int = None, photo_url: str = None):
     prof = query("SELECT * FROM profiles WHERE name = ?", (name,))
     bio  = query("SELECT * FROM politician_bio WHERE politician_id = ?", (politician_id,)) if politician_id else None
-    pol  = query("SELECT party, chamber FROM politicians WHERE id = ?", (politician_id,)) if politician_id else None
+    pol  = query(
+        "SELECT party, chamber, electorate, state FROM politicians WHERE id = ?",
+        (politician_id,)
+    ) if politician_id else None
 
     has_profile = not prof.empty
     has_bio     = bio is not None and not bio.empty
@@ -404,7 +463,6 @@ def profile_expander(name: str, politician_id: int = None, photo_url: str = None
         return
 
     with st.expander("▶ Profile, News & AI Analysis"):
-        # Photo shown on mobile (hidden on desktop via .desktop-photo CSS)
         if photo_url:
             st.markdown(
                 f'<div class="mobile-photo">'
@@ -413,13 +471,19 @@ def profile_expander(name: str, politician_id: int = None, photo_url: str = None
                 f'</div>',
                 unsafe_allow_html=True,
             )
-        # ── Wikipedia bio ────────────────────────────────────────────────────
-        if has_bio and bio.iloc[0]["wikipedia_summary"]:
-            b = bio.iloc[0]
-            st.markdown("**Background:**")
-            st.markdown(b["wikipedia_summary"][:600] + ("…" if len(b["wikipedia_summary"]) > 600 else ""))
-            if b["wikipedia_url"]:
-                st.caption(f"[Read more on Wikipedia →]({b['wikipedia_url']})")
+        # ── Bio ────────────────────────────────────────────────────────────────
+        p_party    = pol.iloc[0]["party"] if has_votes else ""
+        p_chamber  = pol.iloc[0]["chamber"] if has_votes else ""
+        p_elect    = pol.iloc[0]["electorate"] if has_votes else ""
+        p_state    = pol.iloc[0]["state"] if has_votes else ""
+        wiki_text  = bio.iloc[0]["wikipedia_summary"] if has_bio else ""
+        wiki_url   = (bio.iloc[0]["wikipedia_url"] if has_bio else "") or ""
+
+        bio_text = _clean_bio(wiki_text, name, p_party, p_chamber, p_elect, p_state)
+        if bio_text:
+            st.markdown(bio_text)
+            if wiki_url:
+                st.caption(f"[Read more on Wikipedia →]({wiki_url})")
 
         # ── Manual profile (from CSV) ────────────────────────────────────────
         if has_profile:
