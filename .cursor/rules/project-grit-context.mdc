@@ -58,6 +58,22 @@ Your Reps | Current Gov | House of Reps | Senate | Independents |
 Divisions | False Divisions | Vote Explorer | Compare | Promises |
 Revolving Door | Media | How AI Works
 
+## CRITICAL BUG (as of 2026-03-29)
+Most tabs display NO content — the tab bar renders but content below is blank.
+This affects both local (localhost:8501) and cloud (polygraph.streamlit.app).
+The app shows "RUNNING..." in the top-right, suggesting the script never
+finishes executing to the point where tab content renders.
+Root cause is NOT identified. What has been ruled out:
+- Not missing dependencies (all installed in venv, all imports pass)
+- Not database issues (all tables exist with data, all queries succeed)
+- Not syntax errors (compiles clean)
+- Not git sync (local = remote = cloud)
+The venv was recreated on 2026-03-29 (old one had stale path from project
+rename). There is also a stale Streamlit 1.32.0 in user site-packages
+(~/Library/Python/3.13/) that may interfere — not yet cleaned up.
+NEXT STEP: Create a minimal test app with just the tabs and one st.write()
+each, then add sections back one at a time to isolate the hang point.
+
 ## DB Tables (as of 2026-03-29)
 - `politicians` — 226 rows (150 reps + 76 senators)
 - `divisions` — 122 (parliamentary votes)
