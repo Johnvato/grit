@@ -1,38 +1,77 @@
 ---
-description: Project GRIT persistent context — user identity, naming, and repo details
+description: Pollygraph persistent context — identity, stack, architecture, and known issues
 alwaysApply: true
 ---
 
-# Project GRIT Context
+# Pollygraph (formerly GRIT / Squeaky Wheel)
 
 ## Identity
 - GitHub username: `johnvato`
 - GitHub repo: `https://github.com/Johnvato/grit` (private)
 - Local path: `/Users/johneggleston/Desktop/grit`
+- Cloud deployment: `https://polygraph.streamlit.app` (Streamlit Community Cloud, private repo auth)
 
-## Naming Convention
-- **GRIT** — formal product name (used in UI, docs, repo)
-- **Squeaky Wheel** — informal working name (used in conversation)
+## Naming
+- **Pollygraph** — current product name (parrot-P logo)
+- **GRIT** — repo name (legacy)
+- **Squeaky Wheel** — informal working name
 
 ## Stack
-- Language: Python 3.13
-- Frontend: Streamlit
-- Database: SQLite (`grit_cache.db`)
+- Language: Python 3.13.7
+- Frontend: Streamlit 1.55.0
+- Database: SQLite (`grit_cache.db`, committed for portability)
 - Automation: GitHub Actions (`.github/workflows/daily_sync.yml`)
-- Secrets: `.streamlit/secrets.toml` (local only, never committed)
-- Virtual env: `venv/` (activate with `source venv/bin/activate`)
+- Secrets: `.streamlit/secrets.toml` (local only, gitignored, never committed)
+- Virtual env: `venv/` — **ALWAYS use `venv/bin/python3` directly or `source venv/bin/activate`**
 
-## Project Purpose
-Political integrity "Truth Engine" — tracks Australian MPs, their voting records,
-media statements, and surfaces rhetoric vs. reality conflicts.
+## Venv Warning
+The venv was recreated on 2026-03-29 because the project was renamed from
+`squeaky_wheel` to `grit`, which broke the old venv's activate script (hardcoded
+old path). If the venv ever stops working, check `venv/pyvenv.cfg` and
+`grep VIRTUAL_ENV venv/bin/activate` — the path must match the actual directory.
+There is also a stale Streamlit 1.32.0 installed in the user site-packages at
+`~/Library/Python/3.13/lib/python/site-packages/` which will take over if the
+venv isn't activated properly. The system install should ideally be removed with
+`python3 -m pip uninstall streamlit` (without the venv active).
 
 ## Key Files
-- `app.py` — Streamlit frontend
-- `build_schema.py` — initialises SQLite tables (run once)
-- `sync_data.py` — nightly data sync (also run by GitHub Actions)
+- `app.py` — Streamlit frontend (3343 lines, 13 tabs)
+- `build_schema.py` — initialises SQLite tables (idempotent, called on every app start)
+- `sync_data.py` — nightly data sync (TheyVoteForYou API → SQLite)
 - `grit_cache.db` — local database (committed to repo for portability)
+- `requirements.txt` — pip dependencies (streamlit>=1.40.0, no streamlit-searchbox)
+- `assets/` — logo PNGs (`logo_dark_bg.png`, `logo_light_bg.png`, `parrot_icon.png`)
 
-## DB Tables
-- `politicians` (ID, name)
-- `bills` (Bill_No, title)
-- `media` (URL, MP_ID, text)
+## App Architecture
+`app.py` runs top-to-bottom on every interaction. Structure:
+1. Imports and `st.set_page_config`
+2. CSS injection for input borders
+3. `build_schema.init_db()` — ensures all tables exist
+4. Helper functions (`query`, `postcode_to_state`, `_haversine`, `electorate_card`, etc.)
+5. Header: logo via `st.image("assets/logo_dark_bg.png")`, value proposition box, mandate countdown
+6. Compare banner (conditional)
+7. `st.tabs()` — creates 13 tabs
+8. Tab content blocks (`with tab_*:`) — each renders its own UI
+
+## 13 Tabs
+Your Reps | Current Gov | House of Reps | Senate | Independents |
+Divisions | False Divisions | Vote Explorer | Compare | Promises |
+Revolving Door | Media | How AI Works
+
+## DB Tables (as of 2026-03-29)
+- `politicians` — 226 rows (150 reps + 76 senators)
+- `divisions` — 122 (parliamentary votes)
+- `votes` — 7654 (individual MP votes on divisions)
+- `bills` — 21
+- `division_bills` — 70 (many-to-many link)
+- `postcode_electorates` — 3243
+- `polling_places` — 8356
+- `electorate_margins` — 150 (2025 election results)
+- `promises` — 37 (ALP/Coalition/Greens)
+- `controversial_bills` — 6 (False Divisions tab)
+- `revolving_door` — 13 (post-politics career cases)
+- `media_profiles` — 15 (outlet trust/ownership data)
+- `ai_analysis` — 58 (Gemini-generated MP analyses)
+- `politician_news` — 242 (RSS headlines)
+- `politician_bio` — 226 (Wikipedia bios)
+- `hansard_mentions` — 0 (placeholder)
