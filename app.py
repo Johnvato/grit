@@ -806,8 +806,9 @@ if not _promise_summary.empty:
             f'<div style="font-size:13px;font-weight:600;margin-bottom:2px">'
             f'{GOVERNMENT_PARTY} — Government in power</div>'
             f'{_bar_html}'
-            f'<div style="margin:4px 0 8px">{_leg_parts}</div>'
-            f'<div style="font-size:12px;color:#aaa">{_gov_delivered}/{_gov_total} promises delivered</div>',
+            f'<div style="margin:4px 0 2px">{_leg_parts}'
+            f' &nbsp;·&nbsp; <span style="color:#888;font-size:12px">'
+            f'Full tracker + opposition platforms in the <b>Promises</b> tab</span></div>',
             unsafe_allow_html=True,
         )
 
@@ -817,12 +818,6 @@ if not _promise_summary.empty:
                 st.markdown(f"**{_cat}**")
                 _cat_df = _gov_promises[_gov_promises["category"] == _cat]
                 st.markdown(_promise_list_html(_cat_df), unsafe_allow_html=True)
-
-    st.divider()
-
-    st.caption("See the full promise tracker — including opposition platforms — in the **Promises** tab.")
-
-st.divider()
 
 # ── Compare banner (shows when 1+ politicians selected) ───────────────────────
 n_compare = len(st.session_state.compare_ids)
