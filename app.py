@@ -9,6 +9,10 @@ st.set_page_config(page_title="Polygraph", layout="wide")
 
 DB = "grit_cache.db"
 
+# Ensure all tables exist (idempotent — safe to run every time)
+from build_schema import init_db as _init_db
+_init_db()
+
 # ── Comparison state ───────────────────────────────────────────────────────────
 if "compare_ids" not in st.session_state:
     st.session_state.compare_ids = set()
@@ -25,8 +29,11 @@ RISK_COLOURS = {
 
 
 def query(sql, params=()):
-    with sqlite3.connect(DB, check_same_thread=False) as _conn:
-        return pd.read_sql_query(sql, _conn, params=params)
+    try:
+        with sqlite3.connect(DB, check_same_thread=False) as _conn:
+            return pd.read_sql_query(sql, _conn, params=params)
+    except Exception:
+        return pd.DataFrame()
 
 
 def days_until(target):
