@@ -488,24 +488,25 @@ def politician_grid(df, chamber="representatives", tab_key=""):
             with col:
                 if row.get("photo_url"):
                     st.markdown(
-                        f'<div class="desktop-photo">'
+                        f'<div class="desktop-photo" style="text-align:center">'
                         f'<img src="{row["photo_url"]}" width="90" '
                         f'style="border-radius:6px;object-fit:cover">'
                         f'</div>',
                         unsafe_allow_html=True,
                     )
-                st.markdown(f"**{row['name']}**")
                 location = row.get("state") or row.get("electorate", "")
                 att = row.get("attendance_%", "—")
                 reb = int(row["rebellions"])
                 reb_label = f"Reb: {reb}*" if reb > 0 else "Reb: 0"
                 st.markdown(
-                    f'<div style="font-size:11px;color:#888;line-height:1.4;margin-bottom:4px">'
+                    f'<div style="text-align:center;margin-bottom:4px">'
+                    f'<div style="font-size:14px;font-weight:700">{row["name"]}</div>'
+                    f'<div style="font-size:11px;color:#888;line-height:1.4;margin-top:2px">'
                     f'{row["party"]}<br>'
                     f'{location}<br>'
                     f'Att: {att} · {reb_label}<br>'
                     f'{days_left:,}d'
-                    f'</div>',
+                    f'</div></div>',
                     unsafe_allow_html=True,
                 )
                 heat = int(row.get("heat_score") or 0)
