@@ -26,6 +26,13 @@ jobs:
       - name: Import curated profiles
         run: python import_profiles.py
 
+      - name: Seed static data (promises, bills, revolving door, media)
+        run: |
+          python seed_promises.py
+          python seed_controversial_bills.py
+          python seed_revolving_door.py
+          python seed_media_profiles.py
+
       - name: Run sync script
         env:
           TVFY_API_KEY: ${{ secrets.TVFY_API_KEY }}
