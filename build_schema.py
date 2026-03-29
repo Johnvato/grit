@@ -242,6 +242,23 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS media_profiles (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_name         TEXT    NOT NULL UNIQUE,
+            owner               TEXT,
+            parent_company      TEXT,
+            funding_model       TEXT,
+            political_leaning   TEXT,
+            trust_score         INTEGER,
+            trust_method        TEXT,
+            ownership_notes     TEXT,
+            political_interests TEXT,
+            source_url          TEXT,
+            added_date          TEXT
+        )
+    ''')
+
     conn.commit()
     conn.close()
     print("Database schema initialised.")

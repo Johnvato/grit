@@ -843,9 +843,9 @@ if n_compare > 0:
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 (tab_reps, tab_senate, tab_indep, tab_divs, tab_votes,
- tab_compare, tab_promises, tab_bills, tab_revolving) = st.tabs([
+ tab_compare, tab_promises, tab_bills, tab_revolving, tab_media) = st.tabs([
     "House of Reps", "Senate", "Independents", "Divisions", "Vote Explorer",
-    "Compare", "Promises", "False Promises", "Revolving Door",
+    "Compare", "Promises", "False Promises", "Revolving Door", "Media",
 ])
 
 
@@ -1834,3 +1834,220 @@ period for all ministers and senior advisers, with criminal penalties for breach
 
 with tab_revolving:
     build_revolving_door_tab()
+
+# ── Media tab ──────────────────────────────────────────────────────────────────
+TRUST_COLOURS = {
+    1: "#641e16", 2: "#922b21", 3: "#e94560", 4: "#e67e22",
+    5: "#f5a623", 6: "#f1c40f", 7: "#3498db", 8: "#27ae60",
+    9: "#1a7a45", 10: "#145a32",
+}
+LEANING_COLOURS = {
+    "far-right":       "#922b21",
+    "right":           "#e94560",
+    "centre-right":    "#e67e22",
+    "centre":          "#3498db",
+    "centre-left":     "#27ae60",
+    "left":            "#1a7a45",
+}
+
+def _leaning_colour(leaning_text: str) -> str:
+    lt = (leaning_text or "").lower()
+    for key, colour in LEANING_COLOURS.items():
+        if key in lt:
+            return colour
+    return "#888"
+
+
+def build_media_tab():
+    st.subheader("Media Sources")
+    st.caption(
+        "Not all news sources are created equal. This tab shows which media outlets appear "
+        "most frequently in Polygraph's data, who owns them, how they're funded, and where "
+        "their political interests lie. Understanding the source is essential to evaluating "
+        "the information it produces."
+    )
+
+    # ── Trust methodology ──────────────────────────────────────────────────────
+    with st.expander("How we evaluate trustworthiness"):
+        st.markdown("""
+**Trust score (1–10)** is assessed across four dimensions:
+
+| Dimension | What it measures |
+|-----------|-----------------|
+| **Editorial independence** | Is the outlet free from owner interference? Does the owner have commercial or political interests that could influence coverage? |
+| **Transparency** | Does the outlet clearly disclose ownership, funding, and corrections? Are conflicts of interest declared? |
+| **Accuracy track record** | History of ACMA rulings, Press Council adjudications, retractions, and fact-check performance. |
+| **Source diversity** | Does reporting draw on multiple perspectives, or does it consistently platform one side? |
+
+**Political leaning** is assessed by comparing editorial positions, story selection, framing,
+and endorsed candidates over multiple election cycles. It is not a measure of quality —
+a centre-right outlet can be highly trustworthy, and a centre-left outlet can be unreliable.
+
+**Key principle:** Ownership matters more than stated values. A media outlet's coverage
+will, over time, reflect the commercial and political interests of whoever controls it.
+""")
+
+    # ── Most frequent sources ──────────────────────────────────────────────────
+    st.subheader("Sources in our data")
+
+    view_mode = st.radio(
+        "Sort by", ["Most frequently cited", "Most recently cited"],
+        horizontal=True, key="media_sort",
+    )
+
+    if view_mode == "Most frequently cited":
+        source_stats = query("""
+            SELECT source, COUNT(*) AS citations, MAX(published_date) AS latest
+            FROM politician_news
+            WHERE source NOT LIKE '%wikipedia%'
+              AND source NOT LIKE '%facebook%'
+            GROUP BY source
+            ORDER BY citations DESC
+            LIMIT 30
+        """)
+    else:
+        source_stats = query("""
+            SELECT source, COUNT(*) AS citations, MAX(published_date) AS latest
+            FROM politician_news
+            WHERE source NOT LIKE '%wikipedia%'
+              AND source NOT LIKE '%facebook%'
+            GROUP BY source
+            ORDER BY latest DESC
+            LIMIT 30
+        """)
+
+    media_profiles = query("SELECT * FROM media_profiles")
+    profile_map = {}
+    if not media_profiles.empty:
+        for _, mp in media_profiles.iterrows():
+            profile_map[mp["source_name"].lower()] = mp
+
+    if source_stats.empty:
+        st.info("No news sources found. Run the news scraper first.")
+        return
+
+    for _, row in source_stats.iterrows():
+        source = row["source"]
+        citations = int(row["citations"])
+        latest = (row["latest"] or "")[:10]
+
+        profile = profile_map.get(source.lower())
+
+        if profile is not None:
+            trust = int(profile["trust_score"] or 5)
+            trust_colour = TRUST_COLOURS.get(trust, "#888")
+            leaning = profile["political_leaning"] or "Unknown"
+            leaning_col = _leaning_colour(leaning)
+            owner = profile["owner"] or "Unknown"
+
+            # Header with badges
+            st.markdown(
+                f'<div style="border-left:4px solid {trust_colour};padding:10px 14px;'
+                f'margin:8px 0 4px;background:rgba(255,255,255,0.03);'
+                f'border-radius:0 6px 6px 0">'
+                f'<div style="display:flex;justify-content:space-between;'
+                f'align-items:flex-start;flex-wrap:wrap;gap:8px">'
+                f'<div>'
+                f'<div style="font-size:16px;font-weight:700">{source}</div>'
+                f'<div style="font-size:12px;color:#888;margin-top:2px">'
+                f'Owned by: {owner}</div>'
+                f'</div>'
+                f'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+                f'<span style="font-size:11px;background:{trust_colour};color:#fff;'
+                f'padding:2px 10px;border-radius:8px">Trust: {trust}/10</span>'
+                f'<span style="font-size:11px;background:{leaning_col};color:#fff;'
+                f'padding:2px 10px;border-radius:8px">{leaning}</span>'
+                f'</div></div>'
+                f'<div style="font-size:12px;color:#888;margin-top:6px">'
+                f'Cited {citations} time{"s" if citations != 1 else ""} '
+                f'— last: {latest} '
+                f'— Funding: {profile["funding_model"]}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+            with st.expander("Ownership, funding & political interests"):
+                if profile.get("ownership_notes"):
+                    st.markdown("**Ownership**")
+                    st.markdown(profile["ownership_notes"])
+
+                if profile.get("political_interests"):
+                    st.markdown("**Political interests**")
+                    st.markdown(
+                        f'<div style="font-size:13px;border-left:3px solid {leaning_col};'
+                        f'padding:6px 10px;margin:4px 0;color:#ccc">'
+                        f'{profile["political_interests"]}</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                if profile.get("trust_method"):
+                    st.markdown("**Trust assessment**")
+                    st.caption(profile["trust_method"])
+
+                if profile.get("source_url"):
+                    st.markdown(f"[Visit site]({profile['source_url']})")
+
+        else:
+            # No profile — basic listing
+            st.markdown(
+                f'<div style="border-left:4px solid #444;padding:8px 14px;'
+                f'margin:6px 0;background:rgba(255,255,255,0.02);'
+                f'border-radius:0 6px 6px 0">'
+                f'<div style="font-size:14px;font-weight:600">{source}</div>'
+                f'<div style="font-size:12px;color:#888">'
+                f'Cited {citations} time{"s" if citations != 1 else ""} '
+                f'— last: {latest} — No profile available</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.divider()
+
+    # ── Ownership concentration map ────────────────────────────────────────────
+    st.subheader("Who owns what")
+    st.caption(
+        "Australian media is among the most concentrated in the democratic world. "
+        "Three entities control the vast majority of what Australians read, watch, and hear."
+    )
+
+    owners = {}
+    for _, mp in media_profiles.iterrows():
+        parent = mp["parent_company"] or "Unknown"
+        owners.setdefault(parent, []).append(mp)
+
+    for parent, outlets in sorted(owners.items(), key=lambda x: -len(x[1])):
+        owner_name = outlets[0]["owner"] or "Unknown"
+        st.markdown(
+            f'<div style="font-size:15px;font-weight:700;margin-top:12px">'
+            f'{parent}</div>'
+            f'<div style="font-size:12px;color:#888;margin-bottom:6px">'
+            f'Controlled by: {owner_name} — {len(outlets)} outlet{"s" if len(outlets) != 1 else ""}</div>',
+            unsafe_allow_html=True,
+        )
+        for o in outlets:
+            trust = int(o["trust_score"] or 5)
+            leaning = o["political_leaning"] or "Unknown"
+            st.markdown(
+                f'<div style="font-size:13px;margin:2px 0 2px 16px;color:#ccc">'
+                f'{o["source_name"]} '
+                f'<span style="color:{TRUST_COLOURS.get(trust, "#888")};font-size:11px">'
+                f'Trust: {trust}/10</span> '
+                f'<span style="color:{_leaning_colour(leaning)};font-size:11px">'
+                f'{leaning}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    st.divider()
+    st.markdown("""
+**Why this matters:**
+When one company owns 65% of newspaper circulation (News Corp), the owner's political
+preferences become systemic bias — not because individual journalists are biased,
+but because editorial hiring, story selection, and framing decisions flow from the top.
+A healthy democracy requires media pluralism: diverse ownership, diverse funding models,
+and transparent editorial governance.
+""")
+
+
+with tab_media:
+    build_media_tab()
