@@ -3,9 +3,11 @@ import sqlite3
 import pandas as pd
 import datetime
 import folium
-from streamlit_folium import st_folium
+import requests as _req_geo
+import math as _math_geo
+from streamlit_searchbox import st_searchbox
 
-st.set_page_config(page_title="Pollygraph", layout="wide")
+st.set_page_config(page_title="Pollygraph", layout="wide", page_icon="assets/parrot_icon.png")
 
 st.markdown("""
 <style>
@@ -92,6 +94,42 @@ def postcode_to_state(postcode: str) -> str | None:
     if 800 <= pc <= 999:
         return "Northern Territory"
     return None
+
+
+def _haversine(lat1, lon1, lat2, lon2):
+    R = 6371
+    dlat = _math_geo.radians(lat2 - lat1)
+    dlon = _math_geo.radians(lon2 - lon1)
+    a = (_math_geo.sin(dlat / 2) ** 2 +
+         _math_geo.cos(_math_geo.radians(lat1)) *
+         _math_geo.cos(_math_geo.radians(lat2)) *
+         _math_geo.sin(dlon / 2) ** 2)
+    return R * 2 * _math_geo.atan2(_math_geo.sqrt(a), _math_geo.sqrt(1 - a))
+
+
+def _search_australian_addresses(searchterm: str) -> list[tuple[str, dict]]:
+    if not searchterm or len(searchterm.strip()) < 4:
+        return []
+    try:
+        resp = _req_geo.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={
+                "q": searchterm,
+                "format": "json",
+                "countrycodes": "au",
+                "addressdetails": 1,
+                "limit": 5,
+            },
+            headers={"User-Agent": "Pollygraph-AusPolitics/1.0"},
+            timeout=10,
+        )
+        results = resp.json()
+        return [
+            (r["display_name"], {"lat": float(r["lat"]), "lon": float(r["lon"])})
+            for r in results
+        ]
+    except Exception:
+        return []
 
 
 def risk_badge(risk_text: str) -> str:
@@ -214,7 +252,8 @@ def electorate_card(electorate: str):
                     tooltip=f"{p['name']} — {p['suburb']}",
                 ).add_to(m_map)
 
-            st_folium(m_map, height=280, width=500, returned_objects=[])
+            import streamlit.components.v1 as _map_components
+            _map_components.html(m_map._repr_html_(), height=300)
             st.caption(
                 f"{len(places_df)} polling places shown. "
                 f"[View AEC boundary map →](https://electorate.aec.gov.au/)"
@@ -718,15 +757,46 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Header ────────────────────────────────────────────────────────────────────
-st.title("Pollygraph")
+# ── Header (logo) ─────────────────────────────────────────────────────────────
+st.image("assets/logo_light_bg.png", width=280)
 st.caption("Reality vs rhetoric in Australian politics.")
 
+# ── Value proposition ─────────────────────────────────────────────────────────
+st.markdown(
+    '<div style="background:linear-gradient(135deg, rgba(39,174,96,0.08), rgba(52,152,219,0.08));'
+    'border:1px solid rgba(128,128,128,0.15);border-radius:10px;padding:20px 24px;margin:8px 0 20px">'
+
+    '<div style="font-size:16px;font-weight:600;line-height:1.5;margin-bottom:14px">'
+    'Pollygraph aggregates official parliamentary voting records and news coverage '
+    'to provide a detailed snapshot to cut through the noise.</div>'
+
+    '<div style="display:flex;flex-wrap:wrap;gap:12px">'
+
+    '<div style="flex:1;min-width:200px;border-left:3px solid #27ae60;padding:6px 12px">'
+    '<div style="font-size:13px;font-weight:600">Find your representatives</div>'
+    '<div style="font-size:12px;color:#888">Enter your postcode to see every politician '
+    'who represents you — federal, state, and local.</div></div>'
+
+    '<div style="flex:1;min-width:200px;border-left:3px solid #3498db;padding:6px 12px">'
+    '<div style="font-size:13px;font-weight:600">See how they actually vote</div>'
+    '<div style="font-size:12px;color:#888">Every parliamentary vote is recorded. '
+    'We show you the pattern — who follows the party line, who rebels, who doesn\'t show up.</div></div>'
+
+    '<div style="flex:1;min-width:200px;border-left:3px solid #e67e22;padding:6px 12px">'
+    '<div style="font-size:13px;font-weight:600">Spot the gap between rhetoric and reality</div>'
+    '<div style="font-size:12px;color:#888">AI analysis cross-references what politicians say '
+    'in the media against how they vote and what they promised before the election.</div></div>'
+
+    '</div>'
+    '</div>',
+    unsafe_allow_html=True,
+)
+
+# ── Mandate countdown ─────────────────────────────────────────────────────────
 days_left = days_until(NEXT_ELECTION)
 approx_label = "≈ " if ELECTION_DATE_APPROX else ""
 mandate_pct = round(100 * (1 - days_left / (NEXT_ELECTION - LAST_ELECTION).days), 1)
 
-# Countdown label: years & months normally, days-only in the final 100 days
 if days_left <= 100:
     countdown_label = f"{days_left} days"
 else:
@@ -849,47 +919,6 @@ def _promise_list_html(promises_df, is_government: bool = True) -> str:
         )
     return html
 
-if not _promise_summary.empty:
-    _all_promises = query("SELECT * FROM promises ORDER BY category, promise")
-    st.subheader("2025 Election Promises")
-
-    # ── Government party: full delivery bar + expandable list ─────────────────
-    _gov_data    = _promise_summary[_promise_summary["party"] == GOVERNMENT_PARTY]
-    _gov_counts  = {r["status"]: r["n"] for _, r in _gov_data.iterrows()}
-    _gov_total   = sum(_gov_counts.values())
-    _gov_delivered = _gov_counts.get("Delivered", 0)
-
-    if _gov_total:
-        _bar_html = '<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin:6px 0">'
-        for _s in STATUS_ORDER:
-            _n = _gov_counts.get(_s, 0)
-            if _n:
-                _pct = round(100 * _n / _gov_total)
-                _bar_html += f'<div style="width:{_pct}%;background:{STATUS_COLOURS[_s]}"></div>'
-        _bar_html += "</div>"
-
-        _leg_parts = " &nbsp;·&nbsp; ".join(
-            f'<span style="color:{STATUS_COLOURS[_s]};font-size:12px">'
-            f'{_s}: {_gov_counts[_s]}</span>'
-            for _s in STATUS_ORDER if _gov_counts.get(_s, 0)
-        )
-        st.markdown(
-            f'<div style="font-size:13px;font-weight:600;margin-bottom:2px">'
-            f'{GOVERNMENT_PARTY} — Government in power</div>'
-            f'{_bar_html}'
-            f'<div style="margin:4px 0 2px">{_leg_parts}'
-            f' &nbsp;·&nbsp; <span style="color:#888;font-size:12px">'
-            f'Full tracker + opposition platforms in the <b>Promises</b> tab</span></div>',
-            unsafe_allow_html=True,
-        )
-
-        with st.expander(f"See all {_gov_total} {GOVERNMENT_PARTY} promises"):
-            _gov_promises = _all_promises[_all_promises["party"] == GOVERNMENT_PARTY]
-            for _cat in sorted(_gov_promises["category"].unique()):
-                st.markdown(f"**{_cat}**")
-                _cat_df = _gov_promises[_gov_promises["category"] == _cat]
-                st.markdown(_promise_list_html(_cat_df), unsafe_allow_html=True)
-
 # ── Compare banner (shows when 1+ politicians selected) ───────────────────────
 n_compare = len(st.session_state.get("compare_ids", []))
 if n_compare > 0:
@@ -912,9 +941,9 @@ if n_compare > 0:
             st.rerun()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-(tab_yourreps, tab_reps, tab_senate, tab_indep, tab_divs, tab_bills, tab_votes,
+(tab_yourreps, tab_currentgov, tab_reps, tab_senate, tab_indep, tab_divs, tab_bills, tab_votes,
  tab_compare, tab_promises, tab_revolving, tab_media, tab_ai_explainer) = st.tabs([
-    "Your Reps", "House of Reps", "Senate", "Independents", "Divisions",
+    "Your Reps", "Current Gov", "House of Reps", "Senate", "Independents", "Divisions",
     "False Divisions", "Vote Explorer", "Compare", "Promises", "Revolving Door", "Media",
     "How AI Works",
 ])
@@ -1046,102 +1075,63 @@ with tab_yourreps:
         )
     else:
         postcode_input = ""
-        address_input = st.text_input(
-            "Enter your street address",
-            placeholder="e.g. 123 Collins Street, Melbourne VIC",
-            key="yourreps_address",
+        selected_address = st_searchbox(
+            _search_australian_addresses,
+            placeholder="Start typing an Australian address…",
+            key="yourreps_address_searchbox",
+            label="Enter your street address",
         )
         st.caption(
-            "Pollygraph uses OpenStreetMap to convert your address to coordinates, then finds the "
+            "Pollygraph uses OpenStreetMap to suggest addresses as you type, then finds the "
             "nearest AEC polling place to determine your electorate. Your address is not stored. "
             "For an official confirmation, verify your electorate at "
             "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
         )
 
-        if address_input and len(address_input.strip()) > 5:
-            import requests as _req_geo
-            import math as _math_geo
+        if selected_address and isinstance(selected_address, dict):
+            addr_lat = selected_address["lat"]
+            addr_lon = selected_address["lon"]
 
-            @st.cache_data(ttl=3600, show_spinner=False)
-            def _geocode_address(address: str):
-                try:
-                    resp = _req_geo.get(
-                        "https://nominatim.openstreetmap.org/search",
-                        params={
-                            "q": f"{address}, Australia",
-                            "format": "json",
-                            "limit": 1,
-                            "countrycodes": "au",
-                        },
-                        headers={"User-Agent": "Pollygraph-AusPolitics/1.0"},
-                        timeout=10,
-                    )
-                    results = resp.json()
-                    if results:
-                        return float(results[0]["lat"]), float(results[0]["lon"])
-                except Exception:
-                    pass
-                return None, None
-
-            def _haversine(lat1, lon1, lat2, lon2):
-                R = 6371
-                dlat = _math_geo.radians(lat2 - lat1)
-                dlon = _math_geo.radians(lon2 - lon1)
-                a = (_math_geo.sin(dlat / 2) ** 2 +
-                     _math_geo.cos(_math_geo.radians(lat1)) *
-                     _math_geo.cos(_math_geo.radians(lat2)) *
-                     _math_geo.sin(dlon / 2) ** 2)
-                return R * 2 * _math_geo.atan2(_math_geo.sqrt(a), _math_geo.sqrt(1 - a))
-
-            with st.spinner("Looking up your address…"):
-                addr_lat, addr_lon = _geocode_address(address_input.strip())
-
-            if addr_lat is not None:
-                places = query(
-                    "SELECT division, lat, lng, name, suburb FROM polling_places "
-                    "WHERE lat IS NOT NULL"
+            places = query(
+                "SELECT division, lat, lng, name, suburb FROM polling_places "
+                "WHERE lat IS NOT NULL"
+            )
+            if not places.empty:
+                places["dist_km"] = places.apply(
+                    lambda r: _haversine(addr_lat, addr_lon, r["lat"], r["lng"]),
+                    axis=1,
                 )
-                if not places.empty:
-                    places["dist_km"] = places.apply(
-                        lambda r: _haversine(addr_lat, addr_lon, r["lat"], r["lng"]),
-                        axis=1,
-                    )
-                    nearest = places.sort_values("dist_km").iloc[0]
-                    address_electorate = nearest["division"]
-                    dist_km = nearest["dist_km"]
+                nearest = places.sort_values("dist_km").iloc[0]
+                address_electorate = nearest["division"]
+                dist_km = nearest["dist_km"]
 
-                    postcode_input = ""
-                    state_from_addr = query(
-                        "SELECT state FROM polling_places WHERE division = ? LIMIT 1",
-                        (address_electorate,)
-                    )
-                    addr_state = (
-                        state_from_addr.iloc[0]["state"]
-                        if not state_from_addr.empty else None
-                    )
+                postcode_input = ""
+                state_from_addr = query(
+                    "SELECT state FROM polling_places WHERE division = ? LIMIT 1",
+                    (address_electorate,)
+                )
+                addr_state = (
+                    state_from_addr.iloc[0]["state"]
+                    if not state_from_addr.empty else None
+                )
 
-                    st.success(
-                        f"Your nearest polling place is **{nearest['name']}** "
-                        f"({nearest['suburb']}, {dist_km:.1f} km away) "
-                        f"→ electorate of **{address_electorate}**"
+                st.success(
+                    f"Your nearest polling place is **{nearest['name']}** "
+                    f"({nearest['suburb']}, {dist_km:.1f} km away) "
+                    f"→ electorate of **{address_electorate}**"
+                )
+                if dist_km > 10:
+                    st.warning(
+                        "The nearest polling place is quite far from the address you entered. "
+                        "The result may not be accurate — please confirm at "
+                        "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
                     )
-                    if dist_km > 10:
-                        st.warning(
-                            "The nearest polling place is quite far from the address you entered. "
-                            "The result may not be accurate — please confirm at "
-                            "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
-                        )
-                    st.markdown(
-                        '<a href="https://electorate.aec.gov.au/" target="_blank" style="'
-                        'display:inline-block;padding:8px 16px;background:#e94560;color:#fff;'
-                        'border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;'
-                        'margin:4px 0 12px 0">Confirm your electorate at AEC ↗</a>',
-                        unsafe_allow_html=True,
-                    )
-            elif address_input.strip():
-                st.error(
-                    "Could not find that address. Try including your suburb and state, "
-                    "e.g. \"123 Collins Street, Melbourne VIC\". Or use the postcode option."
+                st.markdown(
+                    '<a href="https://electorate.aec.gov.au/" target="_blank" style="'
+                    'display:inline-block;padding:8px 16px;background:#e94560;color:#fff;'
+                    'border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;'
+                    'margin:4px 0 12px 0">Confirm your electorate at AEC ↗</a>',
+                    unsafe_allow_html=True,
                 )
 
     st.markdown("""
@@ -1334,6 +1324,315 @@ your roads, and your planning approvals are all state or local responsibilities.
 
     elif postcode_input:
         st.warning("Postcode not recognised. Check and try again.")
+
+
+# ── Current Government ─────────────────────────────────────────────────────────
+def build_current_gov_tab():
+    st.subheader("The Current Government")
+    st.caption(
+        "A snapshot of who governs Australia right now — how they got here, what they promised, "
+        "and the issues that have defined their term so far."
+    )
+
+    # ── Election Promises (at the top) ────────────────────────────────────────
+    st.markdown("#### 2025 Election Promises")
+    st.caption(
+        "How is the government tracking against what it promised? "
+        "Full detail for all parties is in the Promises tab."
+    )
+
+    if not _promise_summary.empty:
+        _all_promises = query("SELECT * FROM promises ORDER BY category, promise")
+        _gov_data = _promise_summary[_promise_summary["party"] == GOVERNMENT_PARTY]
+        _gov_counts = {r["status"]: r["n"] for _, r in _gov_data.iterrows()}
+        _gov_total = sum(_gov_counts.values())
+
+        if _gov_total:
+            _bar_html = '<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin:6px 0">'
+            for _s in STATUS_ORDER:
+                _n = _gov_counts.get(_s, 0)
+                if _n:
+                    _pct = round(100 * _n / _gov_total)
+                    _bar_html += f'<div style="width:{_pct}%;background:{STATUS_COLOURS[_s]}"></div>'
+            _bar_html += "</div>"
+
+            _leg_parts = " &nbsp;·&nbsp; ".join(
+                f'<span style="color:{STATUS_COLOURS[_s]};font-size:12px">'
+                f'{_s}: {_gov_counts[_s]}</span>'
+                for _s in STATUS_ORDER if _gov_counts.get(_s, 0)
+            )
+            st.markdown(
+                f'<div style="font-size:13px;font-weight:600;margin-bottom:2px">'
+                f'{GOVERNMENT_PARTY} — Government in power</div>'
+                f'{_bar_html}'
+                f'<div style="margin:4px 0 2px">{_leg_parts}</div>',
+                unsafe_allow_html=True,
+            )
+
+            with st.expander(f"See all {_gov_total} {GOVERNMENT_PARTY} promises"):
+                _gov_promises = _all_promises[_all_promises["party"] == GOVERNMENT_PARTY]
+                for _cat in sorted(_gov_promises["category"].unique()):
+                    st.markdown(f"**{_cat}**")
+                    _cat_df = _gov_promises[_gov_promises["category"] == _cat]
+                    st.markdown(_promise_list_html(_cat_df), unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Election result summary ───────────────────────────────────────────────
+    st.markdown("#### 2025 Federal Election Result")
+
+    st.markdown(
+        '<div style="display:flex;align-items:center;gap:0;margin:18px 0 22px 0;justify-content:center">'
+        '  <div style="text-align:center;padding:14px 22px;border-radius:10px;'
+        '  background:linear-gradient(135deg,#1565c0 60%,#1976d2);color:#fff;min-width:170px">'
+        '    <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.85">2022</div>'
+        '    <div style="font-size:20px;font-weight:800;margin:2px 0">Coalition</div>'
+        '    <div style="font-size:12px;opacity:.8">Scott Morrison</div>'
+        '  </div>'
+        '  <div style="display:flex;flex-direction:column;align-items:center;padding:0 6px">'
+        '    <div style="font-size:28px;line-height:1">&#10132;</div>'
+        '    <div style="font-size:10px;color:#888;white-space:nowrap;margin-top:2px">Change of govt</div>'
+        '  </div>'
+        '  <div style="text-align:center;padding:14px 22px;border-radius:10px;'
+        '  background:linear-gradient(135deg,#c62828 60%,#e53935);color:#fff;min-width:170px">'
+        '    <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.85">2022 &#8594;</div>'
+        '    <div style="font-size:20px;font-weight:800;margin:2px 0">Labor</div>'
+        '    <div style="font-size:12px;opacity:.8">Anthony Albanese</div>'
+        '  </div>'
+        '  <div style="display:flex;flex-direction:column;align-items:center;padding:0 6px">'
+        '    <div style="font-size:28px;line-height:1">&#10132;</div>'
+        '    <div style="font-size:10px;color:#888;white-space:nowrap;margin-top:2px">Re-elected</div>'
+        '  </div>'
+        '  <div style="text-align:center;padding:14px 22px;border-radius:10px;'
+        '  background:linear-gradient(135deg,#c62828 60%,#e53935);color:#fff;min-width:170px;'
+        '  box-shadow:0 0 0 3px rgba(229,57,53,.35)">'
+        '    <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.85">2025</div>'
+        '    <div style="font-size:20px;font-weight:800;margin:2px 0">Labor</div>'
+        '    <div style="font-size:12px;opacity:.8">Anthony Albanese</div>'
+        '  </div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    _em = query("""
+        SELECT winning_party,
+               COUNT(*) AS seats,
+               ROUND(AVG(margin_pct), 1) AS avg_margin,
+               ROUND(AVG(swing), 1) AS avg_swing
+        FROM electorate_margins
+        GROUP BY winning_party
+        ORDER BY seats DESC
+    """)
+
+    _party_seats = query("""
+        SELECT party, chamber, COUNT(*) AS n
+        FROM politicians
+        WHERE party NOT IN ('SPK', 'PRES', 'DPRES', 'CWM')
+        GROUP BY party, chamber
+    """)
+
+    total_seats = 151
+    alp_seats = int(_em[_em["winning_party"] == "ALP"]["seats"].sum()) if not _em.empty else 0
+    coalition_seats = int(_em[_em["winning_party"].isin(["LP", "LNP", "NP"])]["seats"].sum()) if not _em.empty else 0
+    majority_line = (total_seats // 2) + 1
+
+    col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+    col_r1.metric("ALP seats", f"{alp_seats} / {total_seats}",
+                  help="Seats won by the Australian Labor Party in the House of Representatives")
+    col_r2.metric("Coalition seats", str(coalition_seats),
+                  help="Combined Liberal, Liberal National, and National Party seats")
+    col_r3.metric("Majority needed", str(majority_line),
+                  help="A party needs 76 of 151 seats to form government in their own right")
+    col_r4.metric("ALP majority", f"+{alp_seats - majority_line}" if alp_seats >= majority_line else str(alp_seats - majority_line),
+                  help="How many seats above or below the 76-seat majority threshold")
+
+    st.markdown(
+        '<div style="margin:12px 0">'
+        '<div style="display:flex;height:20px;border-radius:6px;overflow:hidden;position:relative">'
+        f'<div style="width:{round(100*alp_seats/total_seats)}%;background:#e53935" '
+        f'title="ALP: {alp_seats} seats"></div>'
+        f'<div style="width:{round(100*coalition_seats/total_seats)}%;background:#1565c0" '
+        f'title="Coalition: {coalition_seats} seats"></div>'
+        f'<div style="flex:1;background:#8e24aa" '
+        f'title="Others: {total_seats - alp_seats - coalition_seats} seats"></div>'
+        '</div>'
+        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-top:4px">'
+        f'<span style="color:#e53935">ALP {alp_seats}</span>'
+        f'<span style="color:#1565c0">Coalition {coalition_seats}</span>'
+        f'<span style="color:#8e24aa">Others {total_seats - alp_seats - coalition_seats}</span>'
+        '</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    st.caption(
+        f"The ALP won {alp_seats} of {total_seats} House of Representatives seats on 3 May 2025, "
+        f"{'securing' if alp_seats >= majority_line else 'falling short of'} a majority "
+        f"({majority_line} seats needed). Anthony Albanese was returned as Prime Minister."
+    )
+
+    st.divider()
+
+    # ── Where other parties failed ────────────────────────────────────────────
+    st.markdown("#### Where the other parties fell short")
+
+    if not _em.empty:
+        for party_code, party_name, colour in [
+            ("LP", "Liberal Party", "#1565c0"),
+            ("LNP", "Liberal National Party", "#1565c0"),
+            ("NP", "National Party", "#1b5e20"),
+        ]:
+            pdata = _em[_em["winning_party"] == party_code]
+            if pdata.empty:
+                continue
+            p_seats = int(pdata["seats"].sum())
+            p_margin = float(pdata["avg_margin"].iloc[0])
+            p_swing = float(pdata["avg_swing"].iloc[0])
+
+            st.markdown(
+                f'<div style="border-left:4px solid {colour};padding:8px 14px;'
+                f'margin:6px 0;border-radius:0 6px 6px 0">'
+                f'<div style="font-size:14px;font-weight:700">{party_name}</div>'
+                f'<div style="font-size:13px;color:#aaa;margin-top:4px">'
+                f'{p_seats} seat{"s" if p_seats != 1 else ""} held '
+                f'&nbsp;·&nbsp; Average margin: {p_margin}% '
+                f'&nbsp;·&nbsp; Average swing: {p_swing:+.1f}%'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("""
+The **Coalition** (Liberal, LNP, and Nationals) entered the 2025 election under Peter Dutton
+after losing government in 2022. Key factors in their result:
+
+- **Teal losses held** — The independent candidates who won traditionally safe Liberal seats in 2022
+  (Kooyong, Goldstein, North Sydney, Wentworth, and others) largely held those seats, denying the
+  Liberals a path back to their pre-2022 position.
+- **Climate and integrity** — Voters in affluent urban seats continued to punish the Coalition for
+  its stance on climate policy and its opposition to a federal integrity commission during the
+  Morrison years.
+- **Regional squeeze** — The Nationals faced pressure from independents and minor parties in
+  regional seats, particularly on issues like water management, health services, and renewables.
+- **Senate fragmentation** — Minor parties and independents continued to win Senate seats at
+  Coalition expense, further limiting their ability to block legislation.
+""")
+
+    st.divider()
+
+    # ── Controversies and influences ──────────────────────────────────────────
+    st.markdown("#### Controversies & influences shaping this term")
+
+    _controversies = [
+        {
+            "title": "AUKUS & defence spending",
+            "detail": (
+                "The $368 billion AUKUS nuclear submarine deal remains the single largest defence "
+                "commitment in Australian history. Critics question cost blowouts, the 2030s delivery "
+                "timeline, and whether conventional alternatives would better serve Australia's "
+                "strategic needs. The deal has bipartisan support but faces crossbench scrutiny."
+            ),
+            "colour": "#e94560",
+            "sources": [
+                ("ABC News — AUKUS explained", "https://www.abc.net.au/news/2023-03-14/aukus-nuclear-submarine-deal-explained/102066968"),
+                ("The Guardian — submarine cost blowout", "https://www.theguardian.com/australia-news/2023/mar/14/aukus-submarine-deal-australia-cost"),
+                ("Australian Strategic Policy Institute", "https://www.aspi.org.au/report/aukus"),
+            ],
+        },
+        {
+            "title": "Cost of living & housing",
+            "detail": (
+                "Rising rents, mortgage stress, and grocery prices have defined voter sentiment. "
+                "The government's response — including energy bill relief, rental assistance, and "
+                "the Housing Australia Future Fund — has been criticised as insufficient by "
+                "housing advocates and too interventionist by the opposition."
+            ),
+            "colour": "#f5a623",
+            "sources": [
+                ("ABC News — housing crisis explained", "https://www.abc.net.au/news/2023-09-14/housing-crisis-australia-explained/102846108"),
+                ("The Guardian — cost of living tracker", "https://www.theguardian.com/australia-news/series/cost-of-living-crisis-australia"),
+                ("Grattan Institute — housing policy", "https://grattan.edu.au/report/the-great-australian-nightmare/"),
+            ],
+        },
+        {
+            "title": "Energy transition",
+            "detail": (
+                "The government's 82% renewables by 2030 target is the centrepiece of its climate "
+                "policy. Progress has been uneven — grid reliability concerns, planning delays for "
+                "transmission lines, and opposition to offshore wind in some coastal communities "
+                "have slowed rollout. The Coalition has countered with a nuclear energy proposal."
+            ),
+            "colour": "#2980b9",
+            "sources": [
+                ("ABC News — renewables target tracker", "https://www.abc.net.au/news/2024-01-18/renewables-target-2030-progress-check/103355182"),
+                ("The Guardian — nuclear vs renewables debate", "https://www.theguardian.com/australia-news/2024/jun/19/coalition-nuclear-energy-policy-explained"),
+                ("AEMO — Integrated System Plan", "https://aemo.com.au/energy-systems/major-publications/integrated-system-plan-isp"),
+            ],
+        },
+        {
+            "title": "Political donations & lobbying",
+            "detail": (
+                "Despite promises of transparency, donation disclosure thresholds remain among the "
+                "highest in the OECD ($16,900 federally). Both major parties continue to receive "
+                "significant funding from mining, property, and gambling industries. The revolving "
+                "door between politics and lobbying (see Revolving Door tab) remains largely unregulated."
+            ),
+            "colour": "#8e24aa",
+            "sources": [
+                ("ABC News — political donations explained", "https://www.abc.net.au/news/2022-02-01/political-donations-explained-who-gives-what/100793498"),
+                ("The Guardian — lobbying and the revolving door", "https://www.theguardian.com/australia-news/2023/sep/25/lobbying-revolving-door-australia-politics"),
+                ("Transparency International Australia", "https://transparency.org.au/australia-political-integrity/"),
+            ],
+        },
+        {
+            "title": "Immigration & population",
+            "detail": (
+                "Record net migration levels (over 500,000 in 2023) have fuelled debate about "
+                "infrastructure, housing supply, and wage growth. The government has since tightened "
+                "visa settings, but population pressures — particularly in Sydney and Melbourne — "
+                "remain a political flashpoint."
+            ),
+            "colour": "#e67e22",
+            "sources": [
+                ("ABC News — record migration explained", "https://www.abc.net.au/news/2023-12-15/net-overseas-migration-record-high-explained/103233616"),
+                ("The Guardian — visa changes and impact", "https://www.theguardian.com/australia-news/2024/may/13/australia-immigration-migration-changes-explained"),
+                ("Lowy Institute — immigration attitudes", "https://www.lowyinstitute.org/publications/lowy-institute-poll-2024"),
+            ],
+        },
+        {
+            "title": "Media ownership concentration",
+            "detail": (
+                "Australia has one of the most concentrated media landscapes in the democratic world. "
+                "News Corp and Nine Entertainment control the majority of print and television, "
+                "raising questions about editorial independence and political influence. "
+                "See the Media tab for ownership details and trust ratings."
+            ),
+            "colour": "#27ae60",
+            "sources": [
+                ("ABC News — who owns Australia's media", "https://www.abc.net.au/news/2021-03-03/who-owns-australian-media/13196164"),
+                ("The Conversation — media concentration risks", "https://theconversation.com/australian-media-concentration-is-among-the-worst-in-the-world-107599"),
+                ("ACCC — Digital Platforms Inquiry", "https://www.accc.gov.au/inquiries-and-consultations/digital-platforms-inquiry"),
+            ],
+        },
+    ]
+
+    for c in _controversies:
+        with st.expander(c["title"]):
+            source_links = " &nbsp;".join(
+                f'<a href="{url}" target="_blank" style="display:inline-block;'
+                f'font-size:11px;color:#fff;background:{c["colour"]};padding:3px 10px;'
+                f'border-radius:12px;text-decoration:none;margin:2px 2px 2px 0;'
+                f'opacity:.85">{label}</a>'
+                for label, url in c.get("sources", [])
+            )
+            st.markdown(
+                f'<div style="border-left:3px solid {c["colour"]};padding:6px 12px;'
+                f'font-size:13px">{c["detail"]}</div>'
+                f'<div style="margin-top:8px">{source_links}</div>',
+                unsafe_allow_html=True,
+            )
+
+
+with tab_currentgov:
+    build_current_gov_tab()
 
 
 # ── House of Reps ─────────────────────────────────────────────────────────────
