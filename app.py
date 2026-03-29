@@ -5,7 +5,7 @@ import datetime
 import folium
 from streamlit_folium import st_folium
 
-st.set_page_config(page_title="Polygraph", layout="wide")
+st.set_page_config(page_title="GRIT", layout="wide")
 
 DB = "grit_cache.db"
 
@@ -110,6 +110,25 @@ def electorate_card(electorate: str):
             party  = m["winning_party"]
             p_col  = PARTY_COLOURS.get(party, "#555")
 
+            margin_tip = (
+                "The margin is the gap between the winning candidate and 50%. "
+                "A larger margin means the seat is safer for the incumbent party."
+            )
+            mtype_tip = {
+                "Highly Marginal": "Under 2% margin — could change hands easily at the next election",
+                "Marginal": "2–6% margin — competitive seat that requires active campaigning to hold",
+                "Fairly Safe": "6–10% margin — the incumbent party has a solid but not unassailable lead",
+                "Safe": "Over 10% margin — very unlikely to change hands without a major swing",
+            }.get(mtype, "")
+            party_tip = f"The party that won this electorate on a two-party-preferred basis in 2025"
+            alp_tip = "ALP's share of the two-party-preferred vote — the final count after preferences are distributed"
+            coal_tip = "Coalition's share of the two-party-preferred vote — the final count after preferences are distributed"
+            swing_tip = (
+                "The change in two-party-preferred vote share compared to the previous election. "
+                "Positive means a swing toward the winning party; negative means a swing away."
+            )
+            votes_tip = "Total formal votes counted in this electorate at the 2025 federal election"
+
             st.markdown(
                 f"""
                 <div style="background:#1a1a2e;border-radius:10px;padding:16px;margin-bottom:8px">
@@ -117,21 +136,25 @@ def electorate_card(electorate: str):
                     2025 Result
                   </div>
                   <div style="display:flex;align-items:center;gap:10px;margin:8px 0">
-                    <span style="background:{p_col};color:#fff;padding:3px 10px;
-                                 border-radius:4px;font-weight:700;font-size:14px">{party}</span>
-                    <span style="background:{colour};color:#fff;padding:3px 10px;
-                                 border-radius:4px;font-weight:600;font-size:13px">{mtype}</span>
+                    <span title="{party_tip}" style="background:{p_col};color:#fff;padding:3px 10px;
+                                 border-radius:4px;font-weight:700;font-size:14px;cursor:help">{party}</span>
+                    <span title="{mtype_tip}" style="background:{colour};color:#fff;padding:3px 10px;
+                                 border-radius:4px;font-weight:600;font-size:13px;cursor:help">{mtype}</span>
                   </div>
-                  <div style="color:#fff;font-size:28px;font-weight:700;line-height:1">
+                  <div title="{margin_tip}" style="color:#fff;font-size:28px;font-weight:700;line-height:1;cursor:help">
                     {m['margin_pct']:.1f}%
                   </div>
                   <div style="color:#aaa;font-size:12px">margin</div>
                   <hr style="border-color:#333;margin:10px 0">
                   <div style="color:#ddd;font-size:13px">
-                    ALP: {m['alp_pct']:.1f}% &nbsp;|&nbsp; Coalition: {m['coalition_pct']:.1f}%
+                    <span title="{alp_tip}" style="cursor:help">ALP: {m['alp_pct']:.1f}%</span>
+                    &nbsp;|&nbsp;
+                    <span title="{coal_tip}" style="cursor:help">Coalition: {m['coalition_pct']:.1f}%</span>
                   </div>
                   <div style="color:#aaa;font-size:12px">
-                    Swing: {m['swing']:+.1f}% &nbsp;|&nbsp; {int(m['total_votes']):,} votes
+                    <span title="{swing_tip}" style="cursor:help">Swing: {m['swing']:+.1f}%</span>
+                    &nbsp;|&nbsp;
+                    <span title="{votes_tip}" style="cursor:help">{int(m['total_votes']):,} votes</span>
                   </div>
                 </div>
                 """,
@@ -238,6 +261,7 @@ def ai_analysis_section(politician_id: int):
         rhetoric_flags, positive_notes = [], []
 
     pos_score = flags_data.get("positive_score", 0)
+    source_quality = flags_data.get("source_quality", "")
 
     st.markdown("**AI Analysis** *(updated nightly)*")
     st.markdown(
@@ -248,7 +272,17 @@ def ai_analysis_section(politician_id: int):
     with cols[0]:
         st.markdown(a["summary"] or "")
     with cols[1]:
-        st.caption(f"Sentiment: {a['sentiment'] or 'neutral'}")
+        sq_colours = {"high": "#27ae60", "mixed": "#f39c12", "low": "#e74c3c"}
+        sq_label = source_quality.capitalize() if source_quality else ""
+        sq_html = (
+            f' · Source quality: <span style="color:{sq_colours.get(source_quality, "#888")}'
+            f'">{sq_label}</span>'
+        ) if sq_label else ""
+        st.markdown(
+            f'<span style="font-size:12px;color:#888">Sentiment: {a["sentiment"] or "neutral"}'
+            f'{sq_html}</span>',
+            unsafe_allow_html=True,
+        )
 
     if rhetoric_flags:
         st.markdown("**Flagged concerns:**")
@@ -655,7 +689,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.title("Polygraph")
+st.title("GRIT")
 st.caption("Reality vs rhetoric in Australian politics.")
 
 days_left = days_until(NEXT_ELECTION)
@@ -849,9 +883,10 @@ if n_compare > 0:
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 (tab_yourreps, tab_reps, tab_senate, tab_indep, tab_divs, tab_bills, tab_votes,
- tab_compare, tab_promises, tab_revolving, tab_media) = st.tabs([
+ tab_compare, tab_promises, tab_revolving, tab_media, tab_ai_explainer) = st.tabs([
     "Your Reps", "House of Reps", "Senate", "Independents", "Divisions",
     "False Divisions", "Vote Explorer", "Compare", "Promises", "Revolving Door", "Media",
+    "How AI Works",
 ])
 
 
@@ -963,12 +998,121 @@ with tab_yourreps:
         "government, each with its own elected representatives and responsibilities."
     )
 
-    postcode_input = st.text_input(
-        "Enter your postcode",
-        max_chars=4,
-        placeholder="e.g. 3006",
-        key="yourreps_postcode",
+    lookup_method = st.radio(
+        "How would you like to find your reps?",
+        ["Postcode", "Street address (more precise)"],
+        horizontal=True,
+        key="yourreps_lookup_method",
     )
+
+    address_electorate = None
+
+    if lookup_method == "Postcode":
+        postcode_input = st.text_input(
+            "Enter your postcode",
+            max_chars=4,
+            placeholder="e.g. 3006",
+            key="yourreps_postcode",
+        )
+    else:
+        postcode_input = ""
+        address_input = st.text_input(
+            "Enter your street address",
+            placeholder="e.g. 123 Collins Street, Melbourne VIC",
+            key="yourreps_address",
+        )
+        st.caption(
+            "GRIT uses OpenStreetMap to convert your address to coordinates, then finds the "
+            "nearest AEC polling place to determine your electorate. Your address is not stored. "
+            "For an official confirmation, verify your electorate at "
+            "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
+        )
+
+        if address_input and len(address_input.strip()) > 5:
+            import requests as _req_geo
+            import math as _math_geo
+
+            @st.cache_data(ttl=3600, show_spinner=False)
+            def _geocode_address(address: str):
+                try:
+                    resp = _req_geo.get(
+                        "https://nominatim.openstreetmap.org/search",
+                        params={
+                            "q": f"{address}, Australia",
+                            "format": "json",
+                            "limit": 1,
+                            "countrycodes": "au",
+                        },
+                        headers={"User-Agent": "GRIT-AusPolitics/1.0"},
+                        timeout=10,
+                    )
+                    results = resp.json()
+                    if results:
+                        return float(results[0]["lat"]), float(results[0]["lon"])
+                except Exception:
+                    pass
+                return None, None
+
+            def _haversine(lat1, lon1, lat2, lon2):
+                R = 6371
+                dlat = _math_geo.radians(lat2 - lat1)
+                dlon = _math_geo.radians(lon2 - lon1)
+                a = (_math_geo.sin(dlat / 2) ** 2 +
+                     _math_geo.cos(_math_geo.radians(lat1)) *
+                     _math_geo.cos(_math_geo.radians(lat2)) *
+                     _math_geo.sin(dlon / 2) ** 2)
+                return R * 2 * _math_geo.atan2(_math_geo.sqrt(a), _math_geo.sqrt(1 - a))
+
+            with st.spinner("Looking up your address…"):
+                addr_lat, addr_lon = _geocode_address(address_input.strip())
+
+            if addr_lat is not None:
+                places = query(
+                    "SELECT division, lat, lng, name, suburb FROM polling_places "
+                    "WHERE lat IS NOT NULL"
+                )
+                if not places.empty:
+                    places["dist_km"] = places.apply(
+                        lambda r: _haversine(addr_lat, addr_lon, r["lat"], r["lng"]),
+                        axis=1,
+                    )
+                    nearest = places.sort_values("dist_km").iloc[0]
+                    address_electorate = nearest["division"]
+                    dist_km = nearest["dist_km"]
+
+                    postcode_input = ""
+                    state_from_addr = query(
+                        "SELECT state FROM polling_places WHERE division = ? LIMIT 1",
+                        (address_electorate,)
+                    )
+                    addr_state = (
+                        state_from_addr.iloc[0]["state"]
+                        if not state_from_addr.empty else None
+                    )
+
+                    st.success(
+                        f"Your nearest polling place is **{nearest['name']}** "
+                        f"({nearest['suburb']}, {dist_km:.1f} km away) "
+                        f"→ electorate of **{address_electorate}**"
+                    )
+                    if dist_km > 10:
+                        st.warning(
+                            "The nearest polling place is quite far from the address you entered. "
+                            "The result may not be accurate — please confirm at "
+                            "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
+                        )
+                    st.markdown(
+                        '<a href="https://electorate.aec.gov.au/" target="_blank" style="'
+                        'display:inline-block;padding:8px 16px;background:#e94560;color:#fff;'
+                        'border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;'
+                        'margin:4px 0 12px 0">Confirm your electorate at AEC ↗</a>',
+                        unsafe_allow_html=True,
+                    )
+            elif address_input.strip():
+                st.error(
+                    "Could not find that address. Try including your suburb and state, "
+                    "e.g. \"123 Collins Street, Melbourne VIC\". Or use the postcode option."
+                )
 
     st.markdown("""
 **Three levels of government represent you:**
@@ -986,158 +1130,180 @@ your roads, and your planning approvals are all state or local responsibilities.
 
     st.divider()
 
-    if postcode_input:
-        state_from_pc = postcode_to_state(postcode_input)
-        if state_from_pc:
-            st.success(f"**{postcode_input}** → {state_from_pc}")
+    # Determine state — from postcode or from address geocode
+    _yr_state = None
+    _yr_electorates = []
 
-            # ── Federal: House of Reps ─────────────────────────────────────────
-            st.markdown("### Federal — House of Representatives")
-            st.caption(
-                "Your local federal MP represents your electorate in the lower house. "
-                "They vote on national legislation and should be your first point of contact "
-                "for federal issues like Centrelink, Medicare, immigration, and taxation."
+    if address_electorate:
+        _yr_electorates = [address_electorate]
+        _yr_state = addr_state if 'addr_state' in dir() else None
+        if not _yr_state:
+            _s = query(
+                "SELECT state FROM polling_places WHERE division = ? LIMIT 1",
+                (address_electorate,)
             )
-            electorates_for_pc = query(
+            _yr_state = _s.iloc[0]["state"] if not _s.empty else None
+    elif postcode_input:
+        _yr_state = postcode_to_state(postcode_input)
+        if _yr_state:
+            _yr_electorates = query(
                 "SELECT electorate FROM postcode_electorates WHERE postcode = ?",
                 (postcode_input.strip(),)
             )["electorate"].tolist()
 
-            if electorates_for_pc:
-                placeholders = ",".join("?" * len(electorates_for_pc))
-                local_reps = query(f"""
-                    SELECT p.id, p.name, p.party, p.electorate, p.state, p.photo_url,
-                           p.votes_attended, p.votes_possible, p.rebellions,
-                           COALESCE(a.heat_score, 0) AS heat_score,
-                           COALESCE(a.rhetoric_flags, '{{}}') AS flags_json
-                    FROM politicians p
-                    LEFT JOIN ai_analysis a ON a.politician_id = p.id
-                    WHERE p.chamber='representatives'
-                      AND p.electorate IN ({placeholders})
-                    ORDER BY p.name
-                """, tuple(electorates_for_pc))
+    if _yr_state:
+        if postcode_input and not address_electorate:
+            st.success(f"**{postcode_input}** → {_yr_state}")
 
-                if not local_reps.empty:
-                    import json as _json_yr
-                    local_reps["positive_score"] = local_reps["flags_json"].apply(
-                        lambda x: _json_yr.loads(x).get("positive_score", 0) if x and x != "{}" else 0
-                    )
-                    local_reps["attendance_%"] = local_reps.apply(
-                        lambda r: f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
-                        if r["votes_possible"] > 0 else "—", axis=1
-                    )
-                    st.markdown(
-                        f"**Your electorate{'s' if len(electorates_for_pc) > 1 else ''}:** "
-                        + ", ".join(f"**{e}**" for e in sorted(electorates_for_pc))
-                    )
-                    politician_grid(local_reps, tab_key="yourreps_fed")
+        # ── Federal: House of Reps ─────────────────────────────────────────
+        st.markdown("### Federal — House of Representatives")
+        st.caption(
+            "Your local federal MP represents your electorate in the lower house. "
+            "They vote on national legislation and should be your first point of contact "
+            "for federal issues like Centrelink, Medicare, immigration, and taxation."
+        )
 
-                for elec in sorted(electorates_for_pc):
-                    electorate_card(elec)
-            else:
-                st.info(
-                    f"No federal electorate mapping found for {postcode_input}. "
-                    "[Search the AEC electorate finder](https://electorate.aec.gov.au/)"
-                )
-
-            st.divider()
-
-            # ── Federal: Senate ────────────────────────────────────────────────
-            st.markdown("### Federal — Senate")
-            st.caption(
-                f"Senators represent your entire state or territory ({state_from_pc}). "
-                "Each state has 12 senators; each territory has 2. They review and amend "
-                "legislation passed by the House of Reps — the crossbench often holds the "
-                "balance of power here."
-            )
-            senators_df = query("""
+        if _yr_electorates:
+            placeholders = ",".join("?" * len(_yr_electorates))
+            local_reps = query(f"""
                 SELECT p.id, p.name, p.party, p.electorate, p.state, p.photo_url,
                        p.votes_attended, p.votes_possible, p.rebellions,
                        COALESCE(a.heat_score, 0) AS heat_score,
-                       COALESCE(a.rhetoric_flags, '{}') AS flags_json
+                       COALESCE(a.rhetoric_flags, '{{}}') AS flags_json
                 FROM politicians p
                 LEFT JOIN ai_analysis a ON a.politician_id = p.id
-                WHERE p.chamber='senate' AND p.state=?
+                WHERE p.chamber='representatives'
+                  AND p.electorate IN ({placeholders})
                 ORDER BY p.name
-            """, (state_from_pc,))
+            """, tuple(_yr_electorates))
 
-            if not senators_df.empty:
-                import json as _json_yr2
-                senators_df["positive_score"] = senators_df["flags_json"].apply(
-                    lambda x: _json_yr2.loads(x).get("positive_score", 0) if x and x != "{}" else 0
+            if not local_reps.empty:
+                import json as _json_yr
+                local_reps["positive_score"] = local_reps["flags_json"].apply(
+                    lambda x: _json_yr.loads(x).get("positive_score", 0) if x and x != "{}" else 0
                 )
-                senators_df["attendance_%"] = senators_df.apply(
+                local_reps["attendance_%"] = local_reps.apply(
                     lambda r: f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
                     if r["votes_possible"] > 0 else "—", axis=1
                 )
-                politician_grid(senators_df, chamber="senate", tab_key="yourreps_sen")
-            else:
-                st.info(f"No senators found for {state_from_pc}.")
+                st.markdown(
+                    f"**Your electorate{'s' if len(_yr_electorates) > 1 else ''}:** "
+                    + ", ".join(f"**{e}**" for e in sorted(_yr_electorates))
+                )
+                if len(_yr_electorates) > 1 and not address_electorate:
+                    st.caption(
+                        "Your postcode spans multiple electorates. For a precise match, "
+                        "switch to **Street address** lookup above, or confirm at "
+                        "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
+                    )
+                politician_grid(local_reps, tab_key="yourreps_fed")
 
-            st.divider()
-
-            # ── State government ───────────────────────────────────────────────
-            STATE_PARL_URLS = {
-                "New South Wales": "https://www.parliament.nsw.gov.au/members",
-                "Victoria": "https://www.parliament.vic.gov.au/members",
-                "Queensland": "https://www.parliament.qld.gov.au/Members/Current-Members",
-                "South Australia": "https://www.parliament.sa.gov.au/Members",
-                "Western Australia": "https://www.parliament.wa.gov.au/parliament/memblist.nsf",
-                "Tasmania": "https://www.parliament.tas.gov.au/Members",
-                "Australian Capital Territory": "https://www.parliament.act.gov.au/Members",
-                "Northern Territory": "https://parliament.nt.gov.au/Members",
-            }
-            st.markdown("### State / Territory Government")
-            st.caption(
-                f"Your state or territory government ({state_from_pc}) runs hospitals, "
-                "schools, police, roads, public transport, and housing policy. State elections "
-                "are held separately from federal elections. Your state electorate may differ "
-                "from your federal electorate."
-            )
-            parl_url = STATE_PARL_URLS.get(state_from_pc, "")
-            st.markdown(
-                f"Polygraph currently tracks federal politicians only. "
-                f"Find your state representatives here:"
-            )
-            if parl_url:
-                st.markdown(f"[{state_from_pc} Parliament — Find your member]({parl_url})")
-            else:
-                st.markdown("[Search your state parliament's website]")
-
-            st.divider()
-
-            # ── Local council ──────────────────────────────────────────────────
-            st.markdown("### Local Council")
-            st.caption(
-                "Your local council manages roads, rubbish collection, parks, libraries, "
-                "local planning decisions, and community services. Councillors are elected "
-                "in local government elections held on different cycles to state and federal."
-            )
-            st.markdown(
-                "Find your local council and councillors using the links below:"
-            )
-
-            LOCAL_GOV_URLS = {
-                "New South Wales": ("https://www.olg.nsw.gov.au/find-my-council/", "NSW — Find my council"),
-                "Victoria": ("https://www.localgovernment.vic.gov.au/find-your-council", "VIC — Find your council"),
-                "Queensland": ("https://www.dlgrma.qld.gov.au/local-government-directory", "QLD — Local government directory"),
-                "South Australia": ("https://www.lga.sa.gov.au/about/councils", "SA — Council directory"),
-                "Western Australia": ("https://www.dlgsc.wa.gov.au/local-government/local-governments/local-government-directory", "WA — LG directory"),
-                "Tasmania": ("https://www.dpac.tas.gov.au/divisions/local_government", "TAS — Local government"),
-                "Australian Capital Territory": ("https://www.act.gov.au/", "ACT — No separate local councils (ACT government handles local services)"),
-                "Northern Territory": ("https://www.dlghcd.nt.gov.au/local-government", "NT — Local government"),
-            }
-            lg = LOCAL_GOV_URLS.get(state_from_pc)
-            if lg:
-                if "No separate" in lg[1]:
-                    st.info(lg[1])
-                else:
-                    st.markdown(f"[{lg[1]}]({lg[0]})")
-            else:
-                st.markdown("Search your state's local government website.")
-
+            for elec in sorted(_yr_electorates):
+                electorate_card(elec)
         else:
-            st.warning("Postcode not recognised. Check and try again.")
+            st.info(
+                f"No federal electorate mapping found. "
+                "[Search the AEC electorate finder](https://electorate.aec.gov.au/)"
+            )
+
+        st.divider()
+
+        # ── Federal: Senate ────────────────────────────────────────────────
+        st.markdown("### Federal — Senate")
+        st.caption(
+            f"Senators represent your entire state or territory ({_yr_state}). "
+            "Each state has 12 senators; each territory has 2. They review and amend "
+            "legislation passed by the House of Reps — the crossbench often holds the "
+            "balance of power here."
+        )
+        senators_df = query("""
+            SELECT p.id, p.name, p.party, p.electorate, p.state, p.photo_url,
+                   p.votes_attended, p.votes_possible, p.rebellions,
+                   COALESCE(a.heat_score, 0) AS heat_score,
+                   COALESCE(a.rhetoric_flags, '{}') AS flags_json
+            FROM politicians p
+            LEFT JOIN ai_analysis a ON a.politician_id = p.id
+            WHERE p.chamber='senate' AND p.state=?
+            ORDER BY p.name
+        """, (_yr_state,))
+
+        if not senators_df.empty:
+            import json as _json_yr2
+            senators_df["positive_score"] = senators_df["flags_json"].apply(
+                lambda x: _json_yr2.loads(x).get("positive_score", 0) if x and x != "{}" else 0
+            )
+            senators_df["attendance_%"] = senators_df.apply(
+                lambda r: f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
+                if r["votes_possible"] > 0 else "—", axis=1
+            )
+            politician_grid(senators_df, chamber="senate", tab_key="yourreps_sen")
+        else:
+            st.info(f"No senators found for {_yr_state}.")
+
+        st.divider()
+
+        # ── State government ───────────────────────────────────────────────
+        STATE_PARL_URLS = {
+            "New South Wales": "https://www.parliament.nsw.gov.au/members",
+            "Victoria": "https://www.parliament.vic.gov.au/members",
+            "Queensland": "https://www.parliament.qld.gov.au/Members/Current-Members",
+            "South Australia": "https://www.parliament.sa.gov.au/Members",
+            "Western Australia": "https://www.parliament.wa.gov.au/parliament/memblist.nsf",
+            "Tasmania": "https://www.parliament.tas.gov.au/Members",
+            "Australian Capital Territory": "https://www.parliament.act.gov.au/Members",
+            "Northern Territory": "https://parliament.nt.gov.au/Members",
+        }
+        st.markdown("### State / Territory Government")
+        st.caption(
+            f"Your state or territory government ({_yr_state}) runs hospitals, "
+            "schools, police, roads, public transport, and housing policy. State elections "
+            "are held separately from federal elections. Your state electorate may differ "
+            "from your federal electorate."
+        )
+        parl_url = STATE_PARL_URLS.get(_yr_state, "")
+        st.markdown(
+            f"GRIT currently tracks federal politicians only. "
+            f"Find your state representatives here:"
+        )
+        if parl_url:
+            st.markdown(f"[{_yr_state} Parliament — Find your member]({parl_url})")
+        else:
+            st.markdown("[Search your state parliament's website]")
+
+        st.divider()
+
+        # ── Local council ──────────────────────────────────────────────────
+        st.markdown("### Local Council")
+        st.caption(
+            "Your local council manages roads, rubbish collection, parks, libraries, "
+            "local planning decisions, and community services. Councillors are elected "
+            "in local government elections held on different cycles to state and federal."
+        )
+        st.markdown(
+            "Find your local council and councillors using the links below:"
+        )
+
+        LOCAL_GOV_URLS = {
+            "New South Wales": ("https://www.olg.nsw.gov.au/find-my-council/", "NSW — Find my council"),
+            "Victoria": ("https://www.localgovernment.vic.gov.au/find-your-council", "VIC — Find your council"),
+            "Queensland": ("https://www.dlgrma.qld.gov.au/local-government-directory", "QLD — Local government directory"),
+            "South Australia": ("https://www.lga.sa.gov.au/about/councils", "SA — Council directory"),
+            "Western Australia": ("https://www.dlgsc.wa.gov.au/local-government/local-governments/local-government-directory", "WA — LG directory"),
+            "Tasmania": ("https://www.dpac.tas.gov.au/divisions/local_government", "TAS — Local government"),
+            "Australian Capital Territory": ("https://www.act.gov.au/", "ACT — No separate local councils (ACT government handles local services)"),
+            "Northern Territory": ("https://www.dlghcd.nt.gov.au/local-government", "NT — Local government"),
+        }
+        lg = LOCAL_GOV_URLS.get(_yr_state)
+        if lg:
+            if "No separate" in lg[1]:
+                st.info(lg[1])
+            else:
+                st.markdown(f"[{lg[1]}]({lg[0]})")
+        else:
+            st.markdown("Search your state's local government website.")
+
+    elif postcode_input:
+        st.warning("Postcode not recognised. Check and try again.")
 
 
 # ── House of Reps ─────────────────────────────────────────────────────────────
@@ -1241,6 +1407,21 @@ CROSSBENCH_PARTIES = [
 
 with tab_indep:
     st.subheader("Independents & Crossbench")
+
+    st.caption(
+        "**An Independent** is a politician who is not a member of any political party. "
+        "They run for office on their own platform, answer only to their electorate, and "
+        "vote in parliament according to their own judgement rather than a party position. "
+        "In Australia, independents have won seats in both the House of Representatives and the Senate."
+    )
+    st.caption(
+        "**A Crossbencher** is any MP or senator who is neither part of the government nor the official "
+        "opposition. This includes independents as well as members of minor parties such as the Greens, "
+        "One Nation, or the Jacqui Lambie Network. Crossbenchers sit on the \"cross benches\" of parliament "
+        "— the seats between the government and opposition — and often hold the balance of power."
+    )
+
+    st.divider()
 
     st.markdown("""
 **Why independents matter — and why voting for them is not a wasted vote.**
@@ -1425,7 +1606,7 @@ with tab_votes:
     st.caption(
         "Look up any MP or senator to see their complete voting record across all synced divisions. "
         "This view makes it easy to see whether a politician's votes match their public statements — "
-        "the core of what Polygraph tracks. Filter by aye/no votes to spot patterns, rebellions, "
+        "the core of what GRIT tracks. Filter by aye/no votes to spot patterns, rebellions, "
         "and absences."
     )
 
@@ -1433,7 +1614,96 @@ with tab_votes:
     if not mp_names:
         st.info("No data yet.")
     else:
-        selected_mp = st.selectbox("Select a politician", mp_names)
+        selected_mp = st.selectbox(
+            "Select a politician", mp_names, index=None,
+            placeholder="Search or choose a politician…",
+        )
+
+        # ── Spotlight: cycle through newsworthy politicians until one is picked ──
+        if selected_mp is None:
+            import time as _time_ve
+
+            spotlight_df = query("""
+                SELECT p.id, p.name, p.photo_url, p.party, p.chamber,
+                       p.electorate, p.state, p.votes_attended, p.votes_possible,
+                       p.rebellions,
+                       n.headline, n.source, n.published_date
+                FROM politicians p
+                JOIN politician_news n ON n.politician_id = p.id
+                WHERE n.published_date >= date('now', '-14 days')
+                GROUP BY p.id
+                ORDER BY MAX(n.published_date) DESC
+                LIMIT 12
+            """)
+
+            if not spotlight_df.empty:
+                cycle_idx = int(_time_ve.time() // 5) % len(spotlight_df)
+                sp = spotlight_df.iloc[cycle_idx]
+
+                st.markdown(
+                    '<div style="margin:8px 0 4px 0;font-size:12px;color:#888;'
+                    'text-transform:uppercase;letter-spacing:1px">'
+                    '&#9679; Recently in the news</div>',
+                    unsafe_allow_html=True,
+                )
+
+                ph_col, info_col = st.columns([1, 3])
+                with ph_col:
+                    if sp["photo_url"]:
+                        st.image(sp["photo_url"], width=120)
+                with info_col:
+                    st.markdown(f"### {sp['name']}")
+                    chamber_label = "Senator" if sp["chamber"] == "senate" else "MP"
+                    location = sp["state"] or sp["electorate"]
+                    st.caption(f"{chamber_label} — {sp['party']} — {location}")
+                    attendance = (
+                        f"{100 * sp['votes_attended'] / sp['votes_possible']:.0f}%"
+                        if sp["votes_possible"] > 0 else "—"
+                    )
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("Attendance", attendance)
+                    m2.metric("Rebellions", int(sp["rebellions"]))
+                    m3.metric("Days to election", f"{days_left:,}")
+                    m4.metric("Mandate elapsed", f"{mandate_pct}%")
+
+                st.markdown(
+                    f'<div style="background:#1a1a2e;border-radius:8px;padding:12px;'
+                    f'margin:8px 0;font-size:13px">'
+                    f'<span style="color:#888">Latest headline:</span> '
+                    f'<span style="color:#ddd">{sp["headline"]}</span>'
+                    f'<span style="color:#666;font-size:11px"> — {sp["source"]} '
+                    f'{sp["published_date"]}</span></div>',
+                    unsafe_allow_html=True,
+                )
+
+                progress_bar = (
+                    '<div style="height:3px;background:#222;border-radius:2px;'
+                    'margin:6px 0 2px 0;overflow:hidden">'
+                    '<div style="height:100%;background:linear-gradient(to right,#e74c3c,#27ae60);'
+                    'animation:ve_sweep 5s linear infinite;width:100%;'
+                    'transform-origin:left"></div></div>'
+                    '<style>@keyframes ve_sweep{0%{transform:scaleX(0)}'
+                    '100%{transform:scaleX(1)}}</style>'
+                )
+                st.markdown(progress_bar, unsafe_allow_html=True)
+                st.caption(
+                    f"Showing {cycle_idx + 1} of {len(spotlight_df)} · "
+                    f"Select a name above to explore their voting record"
+                )
+
+                # Auto-rerun every 5 seconds while no politician is selected
+                import streamlit.components.v1 as _components_ve
+                _components_ve.html(
+                    '<script>setTimeout(function(){'
+                    'window.parent.document.querySelectorAll("button[kind=header]").length;'
+                    'window.parent.postMessage({isStreamlitMessage:true,'
+                    'type:"streamlit:rerun"},"*")'
+                    '},5000)</script>',
+                    height=0,
+                )
+
+            st.stop()
+
         mp_row = query(
             "SELECT id, photo_url, party, electorate, state, chamber, "
             "rebellions, votes_attended, votes_possible FROM politicians WHERE name=?",
@@ -1465,7 +1735,9 @@ with tab_votes:
             profile_expander(selected_mp, mp_id, photo_url=r.get("photo_url"))
 
             mp_votes = query("""
-                SELECT d.date, d.name AS division, d.house, v.vote
+                SELECT d.id AS div_id, d.date, d.name AS division, d.house,
+                       d.number, d.aye_votes, d.no_votes, d.rebellions,
+                       d.summary, v.vote
                 FROM votes v JOIN divisions d ON d.id = v.division_id
                 WHERE v.politician_id = ? ORDER BY d.date DESC
             """, (mp_id,))
@@ -1473,12 +1745,127 @@ with tab_votes:
             if mp_votes.empty:
                 st.info("No vote records yet.")
             else:
-                aye = (mp_votes["vote"] == "aye").sum()
-                no  = (mp_votes["vote"] == "no").sum()
+                aye_total = (mp_votes["vote"] == "aye").sum()
+                no_total  = (mp_votes["vote"] == "no").sum()
                 c1, c2 = st.columns(2)
-                c1.metric("Aye", aye)
-                c2.metric("No", no)
-                st.dataframe(mp_votes, use_container_width=True, hide_index=True)
+                c1.metric("Aye", aye_total)
+                c2.metric("No", no_total)
+
+                ve_filter = st.radio(
+                    "Filter votes", ["All", "Aye only", "No only"],
+                    horizontal=True, key="ve_vote_filter",
+                )
+                filtered = mp_votes
+                if ve_filter == "Aye only":
+                    filtered = mp_votes[mp_votes["vote"] == "aye"]
+                elif ve_filter == "No only":
+                    filtered = mp_votes[mp_votes["vote"] == "no"]
+
+                for idx, row in filtered.iterrows():
+                    vote_colour = "#27ae60" if row["vote"] == "aye" else "#e74c3c"
+                    vote_label = row["vote"].upper()
+                    div_title = (row["division"] or "Division")[:80]
+
+                    with st.expander(
+                        f"{'🟢' if row['vote'] == 'aye' else '🔴'} "
+                        f"{row['date']} — {div_title}"
+                    ):
+                        # Header with vote badge
+                        st.markdown(
+                            f'<div style="margin-bottom:8px">'
+                            f'<span style="background:{vote_colour};color:#fff;'
+                            f'padding:3px 10px;border-radius:4px;font-size:12px;'
+                            f'font-weight:700">{selected_mp} voted {vote_label}</span>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                        mc1, mc2, mc3 = st.columns(3)
+                        mc1.metric("Total Aye", int(row["aye_votes"]))
+                        mc2.metric("Total No", int(row["no_votes"]))
+                        mc3.metric("Rebellions", int(row["rebellions"]))
+
+                        # TVFY link
+                        try:
+                            tvfy_div_url = (
+                                f"https://theyvoteforyou.org.au/divisions"
+                                f"/{row['house']}/{row['date']}/{int(row['number'])}"
+                            )
+                        except (ValueError, TypeError):
+                            tvfy_div_url = "https://theyvoteforyou.org.au/divisions"
+                        st.markdown(
+                            f'<a href="{tvfy_div_url}" target="_blank" style="'
+                            f'font-size:12px;color:#e94560">View on They Vote For You ↗</a>',
+                            unsafe_allow_html=True,
+                        )
+
+                        # Linked bills
+                        div_bills = query("""
+                            SELECT b.title, b.url FROM bills b
+                            JOIN division_bills db ON db.bill_id = b.id
+                            WHERE db.division_id = ?
+                        """, (int(row["div_id"]),))
+                        if not div_bills.empty:
+                            st.markdown("**Linked legislation:**")
+                            for _, bill in div_bills.iterrows():
+                                if bill["url"]:
+                                    st.markdown(f"- [{bill['title'] or 'Bill'}]({bill['url']})")
+                                else:
+                                    st.markdown(f"- {bill['title'] or 'Bill'}")
+
+                        # Summary / debate text
+                        summary_text = row.get("summary") or ""
+                        if summary_text:
+                            if len(summary_text) > 600:
+                                short = summary_text[:600].rsplit(". ", 1)[0] + "."
+                                st.markdown("**Division summary:**")
+                                st.markdown(short)
+                                with st.expander("Read full debate text"):
+                                    st.markdown(summary_text)
+                            else:
+                                st.markdown("**Division summary:**")
+                                st.markdown(summary_text)
+
+                        # Who else voted — party breakdown
+                        all_votes = query("""
+                            SELECT p.name, p.party, v2.vote
+                            FROM votes v2
+                            JOIN politicians p ON p.id = v2.politician_id
+                            WHERE v2.division_id = ?
+                            ORDER BY v2.vote, p.party, p.name
+                        """, (int(row["div_id"]),))
+
+                        if not all_votes.empty:
+                            aye_df = all_votes[all_votes["vote"] == "aye"]
+                            no_df  = all_votes[all_votes["vote"] == "no"]
+
+                            aye_col, no_col = st.columns(2)
+                            with aye_col:
+                                st.markdown(f"**Aye ({len(aye_df)})**")
+                                if not aye_df.empty:
+                                    by_party = aye_df.groupby("party")["name"].apply(list)
+                                    for party, names in sorted(by_party.items()):
+                                        st.markdown(
+                                            f'<div style="font-size:12px;margin:2px 0">'
+                                            f'<strong>{party}</strong> ({len(names)}): '
+                                            f'{", ".join(names[:10])}'
+                                            f'{"…" if len(names) > 10 else ""}'
+                                            f'</div>',
+                                            unsafe_allow_html=True,
+                                        )
+                            with no_col:
+                                st.markdown(f"**No ({len(no_df)})**")
+                                if not no_df.empty:
+                                    by_party = no_df.groupby("party")["name"].apply(list)
+                                    for party, names in sorted(by_party.items()):
+                                        st.markdown(
+                                            f'<div style="font-size:12px;margin:2px 0">'
+                                            f'<strong>{party}</strong> ({len(names)}): '
+                                            f'{", ".join(names[:10])}'
+                                            f'{"…" if len(names) > 10 else ""}'
+                                            f'</div>',
+                                            unsafe_allow_html=True,
+                                        )
 
 # ── Compare ───────────────────────────────────────────────────────────────────
 def build_compare_tab():
@@ -2095,7 +2482,7 @@ def build_media_tab():
     st.subheader("Media Sources")
     st.caption(
         "Not all news sources are created equal. This tab shows which media outlets appear "
-        "most frequently in Polygraph's data, who owns them, how they're funded, and where "
+        "most frequently in GRIT's data, who owns them, how they're funded, and where "
         "their political interests lie. Understanding the source is essential to evaluating "
         "the information it produces."
     )
@@ -2284,3 +2671,276 @@ and transparent editorial governance.
 
 with tab_media:
     build_media_tab()
+
+
+# ── How AI Works ──────────────────────────────────────────────────────────────
+
+def build_ai_explainer_tab():
+    import json as _json_ex
+
+    st.subheader("How the AI Analysis Works")
+
+    st.caption(
+        "GRIT uses artificial intelligence to read recent news about every politician in the Australian "
+        "parliament and produce a structured, evidence-based assessment. This page explains exactly what "
+        "the AI does, what each score means, and how to read the results you see throughout the site."
+    )
+
+    st.divider()
+
+    # ── Section 1: The process ────────────────────────────────────────────────
+    st.markdown("### The nightly analysis process")
+    st.markdown("""
+Every night, GRIT runs an automated pipeline:
+
+1. **Collect news** — up to 15 recent headlines per politician are gathered from the previous
+   14 days of media coverage, sourced from Google News.
+2. **Send to AI** — the headlines are sent to Google Gemini (a large language model) along with
+   the politician's name, party, and chamber. The AI is instructed to act as a non-partisan
+   political integrity analyst.
+3. **Structured output** — the AI returns a JSON object containing six fields: a sentiment
+   rating, a heat score, a positive score, a summary, a list of flagged concerns, and a list
+   of positive notes.
+4. **Store and display** — the results are saved to the database and displayed on politician
+   profiles, comparison views, and list pages across GRIT.
+
+The AI has no memory between runs. Each nightly analysis starts fresh from that day's headlines,
+so scores can change as the news cycle moves on.
+""")
+
+    st.divider()
+
+    # ── Section 2: The integrity bar ──────────────────────────────────────────
+    st.markdown("### The integrity bar")
+    st.markdown("""
+The bar you see on every politician's profile has two sides that work independently:
+""")
+
+    col_demo_l, col_demo_r = st.columns(2)
+    with col_demo_l:
+        st.markdown(
+            bipolar_bar(7, 2),
+            unsafe_allow_html=True,
+        )
+        st.caption("High scandal, low integrity contribution")
+    with col_demo_r:
+        st.markdown(
+            bipolar_bar(1, 8),
+            unsafe_allow_html=True,
+        )
+        st.caption("Low scandal, high integrity contribution")
+
+    st.markdown("""
+- **Red bar (left side) — Heat Score (1–10):** measures genuine scandal, hypocrisy, or
+  ethical failure. A score of 1 means the politician has virtually no negative coverage.
+  A score of 10 means they are at the centre of a major scandal. This score only rises for
+  genuinely bad conduct — corruption, broken promises, conflicts of interest, or misleading
+  the public. It does **not** penalise politicians for being outspoken, challenging the
+  government, or championing unpopular causes. Those are signs of integrity, not scandal.
+
+- **Green bar (right side) — Positive Score (1–10):** measures integrity and positive
+  contribution. A score of 1 means little notable positive activity. A score of 10 means
+  exceptional achievement — constructive legislation, accountability efforts, principled
+  stands, or evidence of walking the talk. A politician who attracts media attention by
+  challenging powerful interests or demanding transparency should score high here.
+
+These two scores are completely independent. A politician can score high on both (scandal-prone
+but also doing good work), low on both (quiet backbencher), or any combination.
+""")
+
+    st.markdown("##### What each score range means")
+    score_col1, score_col2 = st.columns(2)
+    with score_col1:
+        st.markdown("""
+**Heat Score (red, left)**
+| Range | Meaning |
+|-------|---------|
+| 1–2 | Minimal scrutiny, no controversy |
+| 3–4 | Some critical coverage, minor issues |
+| 5–6 | Significant negative attention |
+| 7–8 | Serious scandal or sustained criticism |
+| 9–10 | Major scandal, potential legal/ethical crisis |
+""")
+    with score_col2:
+        st.markdown("""
+**Positive Score (green, right)**
+| Range | Meaning |
+|-------|---------|
+| 1–2 | Little notable positive coverage |
+| 3–4 | Some constructive activity or advocacy |
+| 5–6 | Strong positive contributions noted |
+| 7–8 | Significant achievements or principled stands |
+| 9–10 | Exceptional integrity or landmark contribution |
+""")
+
+    st.divider()
+
+    # ── Section 3: Live examples ──────────────────────────────────────────────
+    st.markdown("### Live examples from the database")
+    st.markdown("""
+Below are real examples drawn from the current GRIT database. These illustrate how the AI
+distinguishes between different types of political coverage.
+""")
+
+    # Example: high heat
+    high_heat = query("""
+        SELECT p.name, p.party, a.heat_score, a.sentiment, a.summary,
+               a.rhetoric_flags,
+               COALESCE(json_extract(a.rhetoric_flags, '$.positive_score'), 0) AS positive_score
+        FROM politicians p
+        JOIN ai_analysis a ON a.politician_id = p.id
+        WHERE a.heat_score >= 6
+        ORDER BY a.heat_score DESC
+        LIMIT 1
+    """)
+
+    # Example: high positive
+    high_pos = query("""
+        SELECT p.name, p.party, a.heat_score, a.sentiment, a.summary,
+               a.rhetoric_flags,
+               COALESCE(json_extract(a.rhetoric_flags, '$.positive_score'), 0) AS positive_score
+        FROM politicians p
+        JOIN ai_analysis a ON a.politician_id = p.id
+        WHERE COALESCE(json_extract(a.rhetoric_flags, '$.positive_score'), 0) >= 5
+              AND a.heat_score <= 2
+        ORDER BY json_extract(a.rhetoric_flags, '$.positive_score') DESC
+        LIMIT 1
+    """)
+
+    # Example: quiet / neutral
+    neutral_ex = query("""
+        SELECT p.name, p.party, a.heat_score, a.sentiment, a.summary,
+               a.rhetoric_flags,
+               COALESCE(json_extract(a.rhetoric_flags, '$.positive_score'), 0) AS positive_score
+        FROM politicians p
+        JOIN ai_analysis a ON a.politician_id = p.id
+        WHERE a.heat_score <= 2
+              AND COALESCE(json_extract(a.rhetoric_flags, '$.positive_score'), 0) <= 2
+              AND a.summary IS NOT NULL AND a.summary != ''
+        LIMIT 1
+    """)
+
+    examples = [
+        ("High heat — genuine scandal or sustained criticism", high_heat, "#e74c3c"),
+        ("High positive — integrity and constructive contribution", high_pos, "#27ae60"),
+        ("Neutral — routine coverage, no strong signals", neutral_ex, "#888"),
+    ]
+
+    for title, df, colour in examples:
+        if df.empty:
+            continue
+        row = df.iloc[0]
+        heat = int(row.get("heat_score") or 0)
+        pos  = int(row.get("positive_score") or 0)
+
+        flags_raw = row.get("rhetoric_flags") or "{}"
+        try:
+            flags_data = _json_ex.loads(flags_raw)
+            rhetoric_flags = flags_data.get("rhetoric_flags", [])
+            positive_notes = flags_data.get("positive_notes", [])
+        except Exception:
+            rhetoric_flags, positive_notes = [], []
+
+        st.markdown(
+            f'<div style="border-left:4px solid {colour};padding-left:12px;margin:16px 0 8px 0">'
+            f'<strong>{title}</strong></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(f"**{row['name']}** ({row['party']})")
+        st.markdown(bipolar_bar(heat, pos), unsafe_allow_html=True)
+        st.markdown(f"*{row['summary']}*")
+        st.caption(f"Sentiment: {row['sentiment']}")
+        if rhetoric_flags:
+            st.markdown("**Flagged concerns:**")
+            for f in rhetoric_flags:
+                st.markdown(f"- {f}")
+        if positive_notes:
+            st.markdown("**Positive notes:**")
+            for n in positive_notes:
+                st.markdown(f"- {n}")
+
+    st.divider()
+
+    # ── Section 4: Sentiment ──────────────────────────────────────────────────
+    st.markdown("### Sentiment")
+    st.markdown("""
+Each politician also receives an overall **sentiment** label based on the tone of their recent
+coverage. This is a single word — not a score — that gives a quick read on how the media is
+currently framing them.
+
+| Sentiment | What it means |
+|-----------|---------------|
+| **Positive** | Coverage is predominantly favourable — achievements, praise, good news |
+| **Negative** | Coverage is predominantly critical — scandal, failure, backlash |
+| **Mixed** | A blend of positive and negative — competing narratives |
+| **Neutral** | Routine or procedural coverage — no strong positive or negative framing |
+
+Sentiment is independent of the heat and positive scores. A politician can have "mixed" sentiment
+with a high positive score (media is split, but the AI sees genuine achievements) or "negative"
+sentiment with a low heat score (critical coverage that doesn't rise to the level of scandal).
+""")
+
+    st.divider()
+
+    # ── Section 5: Flagged concerns & positive notes ──────────────────────────
+    st.markdown("### Flagged concerns & positive notes")
+    st.markdown("""
+Beneath the integrity bar on each profile, you may see two lists:
+
+- **Flagged concerns** (shown in red context) — specific issues the AI identified in the
+  headlines: potential hypocrisy, rhetoric that contradicts voting records, misleading framing,
+  conflicts of interest, or unexplained absences. These are not accusations — they are patterns
+  the AI noticed in media coverage that warrant attention.
+
+- **Positive notes** (shown in green context) — genuine achievements, constructive policy work,
+  principled stands, or community advocacy that the AI identified. These balance the picture
+  and ensure the analysis is not purely negative.
+
+Both lists are drawn directly from headlines. The AI does not investigate or verify claims —
+it surfaces what the media is reporting and highlights patterns. It is a starting point for
+your own research, not a final verdict.
+""")
+
+    st.divider()
+
+    # ── Section 6: Limitations ────────────────────────────────────────────────
+    st.markdown("### Limitations and transparency")
+    st.markdown("""
+No AI system is perfect. Here is what you should know about the limitations of GRIT's analysis:
+
+- **Headlines only** — the AI reads headlines and source names, not full articles. This means
+  it can be influenced by sensationalist or misleading headlines, just as any reader would be.
+- **14-day window** — only the most recent two weeks of coverage are analysed. Long-running
+  issues that have dropped out of the news cycle will not appear.
+- **No memory** — each nightly run is independent. The AI does not remember previous analyses,
+  so a politician's score can shift dramatically when the news cycle changes.
+- **Media bias** — if headlines about a politician come predominantly from outlets with a
+  particular political leaning, the AI's assessment will reflect that skew. GRIT's Media tab
+  provides context on media ownership and bias to help you account for this.
+- **Not a verdict** — the AI is a tool for surfacing patterns, not a judge. It can make
+  mistakes, misinterpret sarcasm, or miss context that a human reader would catch. Always
+  cross-reference with primary sources.
+- **Model and cost** — GRIT uses Google Gemini Flash (free tier) to keep the project
+  accessible and free. This model is capable but not infallible.
+""")
+
+    # ── Stats footer ──────────────────────────────────────────────────────────
+    stats = query("""
+        SELECT COUNT(*) as total,
+               ROUND(AVG(heat_score), 1) as avg_heat,
+               ROUND(AVG(COALESCE(json_extract(rhetoric_flags, '$.positive_score'), 0)), 1)
+                   as avg_positive
+        FROM ai_analysis
+    """)
+    if not stats.empty:
+        s = stats.iloc[0]
+        st.divider()
+        st.caption(
+            f"Database snapshot: {int(s['total'])} politicians analysed · "
+            f"Average heat score: {s['avg_heat']}/10 · "
+            f"Average positive score: {s['avg_positive']}/10"
+        )
+
+
+with tab_ai_explainer:
+    build_ai_explainer_tab()

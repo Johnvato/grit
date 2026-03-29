@@ -7,6 +7,7 @@ import requests
 from scrapers.news import sync_all_news
 from scrapers.wikipedia import sync_all_bios
 from scrapers.ai_analysis import sync_all_analyses
+from scrapers.hansard import sync_all_hansard
 
 TVFY_BASE = "https://theyvoteforyou.org.au/api/v1"
 
@@ -244,6 +245,9 @@ def sync_daily_data():
 
     print("Fetching Wikipedia bios...")
     sync_all_bios()
+
+    print("Scraping Hansard...")
+    sync_all_hansard(days_back=14)
 
     print("Running AI analysis...")
     sync_all_analyses()

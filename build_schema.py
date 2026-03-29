@@ -243,6 +243,19 @@ def init_db():
     ''')
 
     cursor.execute('''
+        CREATE TABLE IF NOT EXISTS hansard_mentions (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            politician_id   INTEGER,
+            date            TEXT,
+            context         TEXT,
+            quote           TEXT,
+            url             TEXT UNIQUE,
+            fetched_at      TEXT,
+            FOREIGN KEY (politician_id) REFERENCES politicians(id)
+        )
+    ''')
+
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS media_profiles (
             id                  INTEGER PRIMARY KEY AUTOINCREMENT,
             source_name         TEXT    NOT NULL UNIQUE,
