@@ -845,7 +845,7 @@ if n_compare > 0:
 (tab_reps, tab_senate, tab_indep, tab_divs, tab_votes,
  tab_compare, tab_promises, tab_bills, tab_revolving) = st.tabs([
     "House of Reps", "Senate", "Independents", "Divisions", "Vote Explorer",
-    "Compare", "Promises", "Fine Print", "Revolving Door",
+    "Compare", "Promises", "False Promises", "Revolving Door",
 ])
 
 
@@ -1565,7 +1565,7 @@ IMPACT_COLOURS = {
 }
 
 def build_fine_print_tab():
-    st.subheader("The Fine Print")
+    st.subheader("False Promises")
     st.caption(
         "Legislation often sounds reasonable on the surface — but the detail can tell a "
         "different story. This section highlights bills and policies where the stated purpose "
