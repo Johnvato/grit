@@ -820,26 +820,7 @@ if not _promise_summary.empty:
 
     st.divider()
 
-    # ── Opposition parties: compact platform expanders (no delivery bar) ───────
-    _opp_parties = [p for p in sorted(_promise_summary["party"].unique()) if p != GOVERNMENT_PARTY]
-    if _opp_parties:
-        st.markdown(
-            '<div style="font-size:13px;color:#aaa;margin-bottom:6px">'
-            '**Opposition platforms** — what they promised if elected in 2025</div>',
-            unsafe_allow_html=True,
-        )
-        _opp_cols = st.columns(len(_opp_parties))
-        for _col, _party in zip(_opp_cols, _opp_parties):
-            _pdata  = _promise_summary[_promise_summary["party"] == _party]
-            _counts = {r["status"]: r["n"] for _, r in _pdata.iterrows()}
-            _total  = sum(_counts.values())
-            with _col:
-                with st.expander(f"{_party} — {_total} promises"):
-                    _party_promises = _all_promises[_all_promises["party"] == _party]
-                    for _cat in sorted(_party_promises["category"].unique()):
-                        st.markdown(f"**{_cat}**")
-                        _cat_df = _party_promises[_party_promises["category"] == _cat]
-                        st.markdown(_promise_list_html(_cat_df, is_government=False), unsafe_allow_html=True)
+    st.caption("See the full promise tracker — including opposition platforms — in the **Promises** tab.")
 
 st.divider()
 
