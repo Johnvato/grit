@@ -919,6 +919,13 @@ with tab_yourreps:
         "government, each with its own elected representatives and responsibilities."
     )
 
+    postcode_input = st.text_input(
+        "Enter your postcode",
+        max_chars=4,
+        placeholder="e.g. 3006",
+        key="yourreps_postcode",
+    )
+
     st.markdown("""
 **Three levels of government represent you:**
 
@@ -934,13 +941,6 @@ your roads, and your planning approvals are all state or local responsibilities.
 """)
 
     st.divider()
-
-    postcode_input = st.text_input(
-        "Enter your postcode",
-        max_chars=4,
-        placeholder="e.g. 3006",
-        key="yourreps_postcode",
-    )
 
     if postcode_input:
         state_from_pc = postcode_to_state(postcode_input)
