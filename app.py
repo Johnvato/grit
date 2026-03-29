@@ -3,9 +3,9 @@ import sqlite3
 import pandas as pd
 import datetime
 import folium
+from streamlit_folium import st_folium
 import requests as _req_geo
 import math as _math_geo
-from streamlit_searchbox import st_searchbox
 
 st.set_page_config(page_title="Pollygraph", layout="wide", page_icon="assets/parrot_icon.png")
 
@@ -106,30 +106,6 @@ def _haversine(lat1, lon1, lat2, lon2):
          _math_geo.sin(dlon / 2) ** 2)
     return R * 2 * _math_geo.atan2(_math_geo.sqrt(a), _math_geo.sqrt(1 - a))
 
-
-def _search_australian_addresses(searchterm: str) -> list[tuple[str, dict]]:
-    if not searchterm or len(searchterm.strip()) < 4:
-        return []
-    try:
-        resp = _req_geo.get(
-            "https://nominatim.openstreetmap.org/search",
-            params={
-                "q": searchterm,
-                "format": "json",
-                "countrycodes": "au",
-                "addressdetails": 1,
-                "limit": 5,
-            },
-            headers={"User-Agent": "Pollygraph-AusPolitics/1.0"},
-            timeout=10,
-        )
-        results = resp.json()
-        return [
-            (r["display_name"], {"lat": float(r["lat"]), "lon": float(r["lon"])})
-            for r in results
-        ]
-    except Exception:
-        return []
 
 
 def risk_badge(risk_text: str) -> str:
@@ -252,8 +228,7 @@ def electorate_card(electorate: str):
                     tooltip=f"{p['name']} — {p['suburb']}",
                 ).add_to(m_map)
 
-            import streamlit.components.v1 as _map_components
-            _map_components.html(m_map._repr_html_(), height=300)
+            st_folium(m_map, height=280, width=500, returned_objects=[])
             st.caption(
                 f"{len(places_df)} polling places shown. "
                 f"[View AEC boundary map →](https://electorate.aec.gov.au/)"
@@ -758,7 +733,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Header (logo) ─────────────────────────────────────────────────────────────
-st.image("assets/logo_light_bg.png", width=280)
+st.image("assets/logo_dark_bg.png", width=280)
 st.caption("Reality vs rhetoric in Australian politics.")
 
 # ── Value proposition ─────────────────────────────────────────────────────────
@@ -1075,63 +1050,89 @@ with tab_yourreps:
         )
     else:
         postcode_input = ""
-        selected_address = st_searchbox(
-            _search_australian_addresses,
-            placeholder="Start typing an Australian address…",
-            key="yourreps_address_searchbox",
-            label="Enter your street address",
+        address_input = st.text_input(
+            "Enter your street address",
+            placeholder="e.g. 123 Collins Street, Melbourne VIC",
+            key="yourreps_address",
         )
         st.caption(
-            "Pollygraph uses OpenStreetMap to suggest addresses as you type, then finds the "
+            "Pollygraph uses OpenStreetMap to convert your address to coordinates, then finds the "
             "nearest AEC polling place to determine your electorate. Your address is not stored. "
             "For an official confirmation, verify your electorate at "
             "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
         )
 
-        if selected_address and isinstance(selected_address, dict):
-            addr_lat = selected_address["lat"]
-            addr_lon = selected_address["lon"]
-
-            places = query(
-                "SELECT division, lat, lng, name, suburb FROM polling_places "
-                "WHERE lat IS NOT NULL"
-            )
-            if not places.empty:
-                places["dist_km"] = places.apply(
-                    lambda r: _haversine(addr_lat, addr_lon, r["lat"], r["lng"]),
-                    axis=1,
-                )
-                nearest = places.sort_values("dist_km").iloc[0]
-                address_electorate = nearest["division"]
-                dist_km = nearest["dist_km"]
-
-                postcode_input = ""
-                state_from_addr = query(
-                    "SELECT state FROM polling_places WHERE division = ? LIMIT 1",
-                    (address_electorate,)
-                )
-                addr_state = (
-                    state_from_addr.iloc[0]["state"]
-                    if not state_from_addr.empty else None
-                )
-
-                st.success(
-                    f"Your nearest polling place is **{nearest['name']}** "
-                    f"({nearest['suburb']}, {dist_km:.1f} km away) "
-                    f"→ electorate of **{address_electorate}**"
-                )
-                if dist_km > 10:
-                    st.warning(
-                        "The nearest polling place is quite far from the address you entered. "
-                        "The result may not be accurate — please confirm at "
-                        "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
+        if address_input and len(address_input.strip()) > 5:
+            @st.cache_data(ttl=3600, show_spinner=False)
+            def _geocode_address(address: str):
+                try:
+                    resp = _req_geo.get(
+                        "https://nominatim.openstreetmap.org/search",
+                        params={
+                            "q": f"{address}, Australia",
+                            "format": "json",
+                            "limit": 1,
+                            "countrycodes": "au",
+                        },
+                        headers={"User-Agent": "Pollygraph-AusPolitics/1.0"},
+                        timeout=10,
                     )
-                st.markdown(
-                    '<a href="https://electorate.aec.gov.au/" target="_blank" style="'
-                    'display:inline-block;padding:8px 16px;background:#e94560;color:#fff;'
-                    'border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;'
-                    'margin:4px 0 12px 0">Confirm your electorate at AEC ↗</a>',
-                    unsafe_allow_html=True,
+                    results = resp.json()
+                    if results:
+                        return float(results[0]["lat"]), float(results[0]["lon"])
+                except Exception:
+                    pass
+                return None, None
+
+            with st.spinner("Looking up your address…"):
+                addr_lat, addr_lon = _geocode_address(address_input.strip())
+
+            if addr_lat is not None:
+                places = query(
+                    "SELECT division, lat, lng, name, suburb FROM polling_places "
+                    "WHERE lat IS NOT NULL"
+                )
+                if not places.empty:
+                    places["dist_km"] = places.apply(
+                        lambda r: _haversine(addr_lat, addr_lon, r["lat"], r["lng"]),
+                        axis=1,
+                    )
+                    nearest = places.sort_values("dist_km").iloc[0]
+                    address_electorate = nearest["division"]
+                    dist_km = nearest["dist_km"]
+
+                    postcode_input = ""
+                    state_from_addr = query(
+                        "SELECT state FROM polling_places WHERE division = ? LIMIT 1",
+                        (address_electorate,)
+                    )
+                    addr_state = (
+                        state_from_addr.iloc[0]["state"]
+                        if not state_from_addr.empty else None
+                    )
+
+                    st.success(
+                        f"Your nearest polling place is **{nearest['name']}** "
+                        f"({nearest['suburb']}, {dist_km:.1f} km away) "
+                        f"→ electorate of **{address_electorate}**"
+                    )
+                    if dist_km > 10:
+                        st.warning(
+                            "The nearest polling place is quite far from the address you entered. "
+                            "The result may not be accurate — please confirm at "
+                            "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
+                        )
+                    st.markdown(
+                        '<a href="https://electorate.aec.gov.au/" target="_blank" style="'
+                        'display:inline-block;padding:8px 16px;background:#e94560;color:#fff;'
+                        'border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;'
+                        'margin:4px 0 12px 0">Confirm your electorate at AEC ↗</a>',
+                        unsafe_allow_html=True,
+                    )
+            elif address_input.strip():
+                st.error(
+                    "Could not find that address. Try including your suburb and state, "
+                    "e.g. \"123 Collins Street, Melbourne VIC\". Or use the postcode option."
                 )
 
     st.markdown("""
@@ -1632,7 +1633,10 @@ after losing government in 2022. Key factors in their result:
 
 
 with tab_currentgov:
-    build_current_gov_tab()
+    try:
+        build_current_gov_tab()
+    except Exception as _cg_err:
+        st.error(f"Error loading Current Government tab: {_cg_err}")
 
 
 # ── House of Reps ─────────────────────────────────────────────────────────────
