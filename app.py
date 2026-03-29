@@ -5,7 +5,19 @@ import datetime
 import folium
 from streamlit_folium import st_folium
 
-st.set_page_config(page_title="GRIT", layout="wide")
+st.set_page_config(page_title="Pollygraph", layout="wide")
+
+st.markdown("""
+<style>
+/* Faint border on all Streamlit text inputs, selects, and textareas for light-mode contrast */
+div[data-baseweb="input"] > div,
+div[data-baseweb="select"] > div,
+div[data-baseweb="textarea"] > div {
+    border: 1px solid rgba(0, 0, 0, 0.15) !important;
+    border-radius: 6px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 DB = "grit_cache.db"
 
@@ -15,7 +27,25 @@ _init_db()
 
 # ── Comparison state ───────────────────────────────────────────────────────────
 if "compare_ids" not in st.session_state:
-    st.session_state.compare_ids = set()
+    st.session_state.compare_ids = []
+
+
+def _compare_has(pid):
+    return pid in st.session_state.get("compare_ids", [])
+
+
+def _compare_add(pid):
+    ids = st.session_state.get("compare_ids", [])
+    if pid not in ids:
+        ids.append(pid)
+    st.session_state.compare_ids = ids
+
+
+def _compare_remove(pid):
+    ids = st.session_state.get("compare_ids", [])
+    if pid in ids:
+        ids.remove(pid)
+    st.session_state.compare_ids = ids
 
 ELECTION_DATE_APPROX = True
 NEXT_ELECTION = datetime.date(2028, 5, 6)
@@ -616,15 +646,15 @@ def politician_grid(df, chamber="representatives", tab_key=""):
                 st.markdown(bipolar_bar(heat, pos, compact=True), unsafe_allow_html=True)
 
                 # Compare checkbox
-                in_compare = pid in st.session_state.compare_ids
+                in_compare = _compare_has(pid)
                 if st.checkbox(
                     "Compare" if not in_compare else "In compare",
                     key=f"cmp_{tab_key}_{pid}",
                     value=in_compare,
                 ):
-                    st.session_state.compare_ids.add(pid)
+                    _compare_add(pid)
                 else:
-                    st.session_state.compare_ids.discard(pid)
+                    _compare_remove(pid)
 
                 profile_expander(row["name"], pid, photo_url=row.get("photo_url"))
 
@@ -689,7 +719,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.title("GRIT")
+st.title("Pollygraph")
 st.caption("Reality vs rhetoric in Australian politics.")
 
 days_left = days_until(NEXT_ELECTION)
@@ -861,24 +891,24 @@ if not _promise_summary.empty:
                 st.markdown(_promise_list_html(_cat_df), unsafe_allow_html=True)
 
 # ── Compare banner (shows when 1+ politicians selected) ───────────────────────
-n_compare = len(st.session_state.compare_ids)
+n_compare = len(st.session_state.get("compare_ids", []))
 if n_compare > 0:
     banner_col, clear_col = st.columns([5, 1])
     with banner_col:
         if n_compare == 1:
-            cid = next(iter(st.session_state.compare_ids))
+            cid = st.session_state.compare_ids[0]
             cname = query("SELECT name FROM politicians WHERE id=?", (cid,))
             cname_str = cname.iloc[0]["name"] if not cname.empty else str(cid)
             st.info(f"**1 selected:** {cname_str} — select at least one more to compare.")
         else:
             cnames = query(
                 f"SELECT name FROM politicians WHERE id IN ({','.join('?'*n_compare)})",
-                tuple(st.session_state.compare_ids),
+                tuple(st.session_state.get("compare_ids", [])),
             )["name"].tolist()
             st.success(f"**{n_compare} selected for comparison:** {', '.join(cnames)} — see the **Compare** tab.")
     with clear_col:
         if st.button("Clear", key="clear_compare_btn"):
-            st.session_state.compare_ids = set()
+            st.session_state.compare_ids = []
             st.rerun()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -1022,7 +1052,7 @@ with tab_yourreps:
             key="yourreps_address",
         )
         st.caption(
-            "GRIT uses OpenStreetMap to convert your address to coordinates, then finds the "
+            "Pollygraph uses OpenStreetMap to convert your address to coordinates, then finds the "
             "nearest AEC polling place to determine your electorate. Your address is not stored. "
             "For an official confirmation, verify your electorate at "
             "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
@@ -1043,7 +1073,7 @@ with tab_yourreps:
                             "limit": 1,
                             "countrycodes": "au",
                         },
-                        headers={"User-Agent": "GRIT-AusPolitics/1.0"},
+                        headers={"User-Agent": "Pollygraph-AusPolitics/1.0"},
                         timeout=10,
                     )
                     results = resp.json()
@@ -1262,7 +1292,7 @@ your roads, and your planning approvals are all state or local responsibilities.
         )
         parl_url = STATE_PARL_URLS.get(_yr_state, "")
         st.markdown(
-            f"GRIT currently tracks federal politicians only. "
+            f"Pollygraph currently tracks federal politicians only. "
             f"Find your state representatives here:"
         )
         if parl_url:
@@ -1409,23 +1439,93 @@ with tab_indep:
     st.subheader("Independents & Crossbench")
 
     st.caption(
-        "**An Independent** is a politician who is not a member of any political party. "
-        "They run for office on their own platform, answer only to their electorate, and "
-        "vote in parliament according to their own judgement rather than a party position. "
-        "In Australia, independents have won seats in both the House of Representatives and the Senate."
+        "These two terms overlap — and are often confused. The simplest way to think "
+        "about it: one describes *who you are*, the other describes *where you sit* "
+        "and what role you play in Parliament."
     )
-    st.caption(
-        "**A Crossbencher** is any MP or senator who is neither part of the government nor the official "
-        "opposition. This includes independents as well as members of minor parties such as the Greens, "
-        "One Nation, or the Jacqui Lambie Network. Crossbenchers sit on the \"cross benches\" of parliament "
-        "— the seats between the government and opposition — and often hold the balance of power."
+
+    col_ind, col_cross = st.columns(2)
+    with col_ind:
+        st.markdown(
+            '<div style="border-left:4px solid #27ae60;padding:10px 14px;'
+            'border-radius:0 6px 6px 0;margin-bottom:8px">'
+            '<div style="font-size:15px;font-weight:700;margin-bottom:6px">'
+            'An Independent — the "who"</div>'
+            '<div style="font-size:13px">'
+            'A politician who is <strong>not a member of any political party</strong>. '
+            'They run on their own platform, answer only to their electorate, and vote '
+            'according to their own judgement. They have no party leader, no party whip, '
+            'and no party platform to follow — they are a "party of one".'
+            '</div></div>',
+            unsafe_allow_html=True,
+        )
+    with col_cross:
+        st.markdown(
+            '<div style="border-left:4px solid #2980b9;padding:10px 14px;'
+            'border-radius:0 6px 6px 0;margin-bottom:8px">'
+            '<div style="font-size:15px;font-weight:700;margin-bottom:6px">'
+            'A Crossbencher — the "where"</div>'
+            '<div style="font-size:13px">'
+            'Any MP or senator who is <strong>neither part of the government nor the '
+            'official opposition</strong>. This includes independents <em>and</em> members '
+            'of minor parties (Greens, One Nation, Jacqui Lambie Network, etc.). They sit '
+            'on the curved "cross benches" between the government and opposition sides of '
+            'the chamber.'
+            '</div></div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(128,128,128,0.2);'
+        'border-radius:8px;padding:12px 16px;margin:8px 0 16px">'
+        '<div style="font-size:14px;font-weight:700;margin-bottom:6px">'
+        'The key distinction</div>'
+        '<div style="font-size:13px">'
+        '<strong>All independents are crossbenchers</strong> — because they are not in the '
+        'government or opposition.<br>'
+        '<strong>Not all crossbenchers are independents</strong> — because some belong to '
+        'minor parties like the Greens.'
+        '</div>'
+        '<div style="font-size:12px;color:#888;margin-top:8px">'
+        'The term "crossbench" is usually used when talking about <em>voting power</em>. '
+        'When the government needs extra votes to pass a law, it must "go to the crossbench" '
+        'to negotiate — regardless of whether those crossbenchers are independents or minor '
+        'party members. In that moment, they all hold the balance of power.'
+        '</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    # Comparison table
+    st.markdown(
+        '<table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:16px">'
+        '<tr style="border-bottom:2px solid rgba(128,128,128,0.3);text-align:left">'
+        '<th style="padding:6px 10px"></th>'
+        '<th style="padding:6px 10px;color:#27ae60">Independent</th>'
+        '<th style="padding:6px 10px;color:#2980b9">Crossbencher</th></tr>'
+        '<tr style="border-bottom:1px solid rgba(128,128,128,0.15)">'
+        '<td style="padding:6px 10px;font-weight:600">Party member?</td>'
+        '<td style="padding:6px 10px">No — always solo</td>'
+        '<td style="padding:6px 10px">Sometimes (may belong to a minor party)</td></tr>'
+        '<tr style="border-bottom:1px solid rgba(128,128,128,0.15)">'
+        '<td style="padding:6px 10px;font-weight:600">Who do they answer to?</td>'
+        '<td style="padding:6px 10px">Only their voters</td>'
+        '<td style="padding:6px 10px">Their voters (and their party, if they have one)</td></tr>'
+        '<tr style="border-bottom:1px solid rgba(128,128,128,0.15)">'
+        '<td style="padding:6px 10px;font-weight:600">Where do they sit?</td>'
+        '<td style="padding:6px 10px">On the cross benches</td>'
+        '<td style="padding:6px 10px">On the cross benches</td></tr>'
+        '<tr>'
+        '<td style="padding:6px 10px;font-weight:600">Example</td>'
+        '<td style="padding:6px 10px">David Pocock (Ind)</td>'
+        '<td style="padding:6px 10px">A Greens senator <em>or</em> David Pocock</td></tr>'
+        '</table>',
+        unsafe_allow_html=True,
     )
 
     st.divider()
 
-    st.markdown("""
-**Why independents matter — and why voting for them is not a wasted vote.**
-
+    with st.expander("Why independents matter — and why voting for them is not a wasted vote"):
+        st.markdown("""
 Australia's preferential voting system means a vote for an independent is never wasted.
 If your first-choice candidate is eliminated, your vote flows to your next preference —
 so you can vote with your conscience knowing your vote still counts toward the final result.
@@ -1606,7 +1706,7 @@ with tab_votes:
     st.caption(
         "Look up any MP or senator to see their complete voting record across all synced divisions. "
         "This view makes it easy to see whether a politician's votes match their public statements — "
-        "the core of what GRIT tracks. Filter by aye/no votes to spot patterns, rebellions, "
+        "the core of what Pollygraph tracks. Filter by aye/no votes to spot patterns, rebellions, "
         "and absences."
     )
 
@@ -1691,16 +1791,9 @@ with tab_votes:
                     f"Select a name above to explore their voting record"
                 )
 
-                # Auto-rerun every 5 seconds while no politician is selected
-                import streamlit.components.v1 as _components_ve
-                _components_ve.html(
-                    '<script>setTimeout(function(){'
-                    'window.parent.document.querySelectorAll("button[kind=header]").length;'
-                    'window.parent.postMessage({isStreamlitMessage:true,'
-                    'type:"streamlit:rerun"},"*")'
-                    '},5000)</script>',
-                    height=0,
-                )
+                # Auto-advance every 5 seconds while no politician is selected
+                from streamlit_autorefresh import st_autorefresh
+                st_autorefresh(interval=5000, limit=0, key="ve_spotlight_refresh")
 
             st.stop()
 
@@ -1878,7 +1971,7 @@ def build_compare_tab():
         "in parallel columns to spot differences at a glance."
     )
 
-    cids = list(st.session_state.compare_ids)
+    cids = list(st.session_state.get("compare_ids", []))
 
     if not cids:
         st.info(
@@ -2046,7 +2139,7 @@ def build_compare_tab():
                 key=f"rm_cmp_{int(row['id'])}",
                 help=f"Remove {row['name']} from comparison",
             ):
-                st.session_state.compare_ids.discard(int(row["id"]))
+                _compare_remove(int(row["id"]))
                 st.rerun()
 
 
@@ -2482,7 +2575,7 @@ def build_media_tab():
     st.subheader("Media Sources")
     st.caption(
         "Not all news sources are created equal. This tab shows which media outlets appear "
-        "most frequently in GRIT's data, who owns them, how they're funded, and where "
+        "most frequently in Pollygraph's data, who owns them, how they're funded, and where "
         "their political interests lie. Understanding the source is essential to evaluating "
         "the information it produces."
     )
@@ -2681,7 +2774,7 @@ def build_ai_explainer_tab():
     st.subheader("How the AI Analysis Works")
 
     st.caption(
-        "GRIT uses artificial intelligence to read recent news about every politician in the Australian "
+        "Pollygraph uses artificial intelligence to read recent news about every politician in the Australian "
         "parliament and produce a structured, evidence-based assessment. This page explains exactly what "
         "the AI does, what each score means, and how to read the results you see throughout the site."
     )
@@ -2691,7 +2784,7 @@ def build_ai_explainer_tab():
     # ── Section 1: The process ────────────────────────────────────────────────
     st.markdown("### The nightly analysis process")
     st.markdown("""
-Every night, GRIT runs an automated pipeline:
+Every night, Pollygraph runs an automated pipeline:
 
 1. **Collect news** — up to 15 recent headlines per politician are gathered from the previous
    14 days of media coverage, sourced from Google News.
@@ -2702,7 +2795,7 @@ Every night, GRIT runs an automated pipeline:
    rating, a heat score, a positive score, a summary, a list of flagged concerns, and a list
    of positive notes.
 4. **Store and display** — the results are saved to the database and displayed on politician
-   profiles, comparison views, and list pages across GRIT.
+   profiles, comparison views, and list pages across Pollygraph.
 
 The AI has no memory between runs. Each nightly analysis starts fresh from that day's headlines,
 so scores can change as the news cycle moves on.
@@ -2778,7 +2871,7 @@ but also doing good work), low on both (quiet backbencher), or any combination.
     # ── Section 3: Live examples ──────────────────────────────────────────────
     st.markdown("### Live examples from the database")
     st.markdown("""
-Below are real examples drawn from the current GRIT database. These illustrate how the AI
+Below are real examples drawn from the current Pollygraph database. These illustrate how the AI
 distinguishes between different types of political coverage.
 """)
 
@@ -2906,7 +2999,7 @@ your own research, not a final verdict.
     # ── Section 6: Limitations ────────────────────────────────────────────────
     st.markdown("### Limitations and transparency")
     st.markdown("""
-No AI system is perfect. Here is what you should know about the limitations of GRIT's analysis:
+No AI system is perfect. Here is what you should know about the limitations of Pollygraph's analysis:
 
 - **Headlines only** — the AI reads headlines and source names, not full articles. This means
   it can be influenced by sensationalist or misleading headlines, just as any reader would be.
@@ -2915,12 +3008,12 @@ No AI system is perfect. Here is what you should know about the limitations of G
 - **No memory** — each nightly run is independent. The AI does not remember previous analyses,
   so a politician's score can shift dramatically when the news cycle changes.
 - **Media bias** — if headlines about a politician come predominantly from outlets with a
-  particular political leaning, the AI's assessment will reflect that skew. GRIT's Media tab
+  particular political leaning, the AI's assessment will reflect that skew. Pollygraph's Media tab
   provides context on media ownership and bias to help you account for this.
 - **Not a verdict** — the AI is a tool for surfacing patterns, not a judge. It can make
   mistakes, misinterpret sarcasm, or miss context that a human reader would catch. Always
   cross-reference with primary sources.
-- **Model and cost** — GRIT uses Google Gemini Flash (free tier) to keep the project
+- **Model and cost** — Pollygraph uses Google Gemini Flash (free tier) to keep the project
   accessible and free. This model is capable but not infallible.
 """)
 

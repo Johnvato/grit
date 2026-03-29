@@ -9,7 +9,7 @@ import requests
 
 WIKI_SEARCH = "https://en.wikipedia.org/w/api.php"
 WIKI_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
-HEADERS = {"User-Agent": "GRIT-TruthEngine/1.0 (https://github.com/Johnvato/grit)"}
+HEADERS = {"User-Agent": "Pollygraph/1.0 (https://github.com/Johnvato/grit)"}
 
 
 def search_wikipedia(name: str) -> tuple[str, str] | tuple[None, None]:
