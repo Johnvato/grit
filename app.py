@@ -861,7 +861,7 @@ def build_mp_tab(chamber: str):
     with sort_col:
         sort_by = st.selectbox(
             "Sort by",
-            ["Name (A–Z)", "Rebellions ↓", "Rebellions ↑", "Attendance ↓", "Attendance ↑", "Heat Score ↓"],
+            ["Heat Score ↓", "Name (A–Z)", "Rebellions ↓", "Rebellions ↑", "Attendance ↓", "Attendance ↑"],
             key=f"sort_{chamber}",
         )
 
