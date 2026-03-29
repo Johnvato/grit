@@ -154,7 +154,10 @@ def electorate_card(electorate: str):
                     tooltip=f"{p['name']} — {p['suburb']}",
                 ).add_to(m_map)
 
-            st_folium(m_map, height=280, use_container_width=True)
+            try:
+                st_folium(m_map, height=280, use_container_width=True)
+            except Exception:
+                st_folium(m_map, height=280, width=400)
             st.caption(
                 f"{len(places_df)} polling places shown. "
                 f"[View AEC boundary map →](https://electorate.aec.gov.au/)"
@@ -627,52 +630,10 @@ st.caption(
     "This bar shows how much of the current term has passed — at 100% an election must be called."
 )
 
-# ── Postcode filter ───────────────────────────────────────────────────────────
 st.divider()
-with st.expander("Find your local representatives by postcode", expanded=False):
-    postcode_input = st.text_input("Enter your postcode", max_chars=4, placeholder="e.g. 3006")
-    state_from_pc = None
-    if postcode_input:
-        state_from_pc = postcode_to_state(postcode_input)
-        if state_from_pc:
-            st.success(f"**{postcode_input}** → {state_from_pc}")
-            senators_for_state = query(
-                "SELECT name, party, electorate FROM politicians WHERE chamber='senate' AND state=? ORDER BY name",
-                (state_from_pc,)
-            )
-            if not senators_for_state.empty:
-                st.markdown(f"**Your senators ({state_from_pc}):**")
-                for _, s in senators_for_state.iterrows():
-                    st.markdown(f"- {s['name']} *(_{s['party']}_)*")
 
-            electorates_for_pc = query(
-                "SELECT electorate FROM postcode_electorates WHERE postcode = ?",
-                (postcode_input.strip(),)
-            )["electorate"].tolist()
-            if electorates_for_pc:
-                st.markdown(f"**Your electorate(s):** {', '.join(f'**{e}**' for e in sorted(electorates_for_pc))}")
-                placeholders = ",".join("?" * len(electorates_for_pc))
-                local_reps = query(f"""
-                    SELECT name, party, electorate FROM politicians
-                    WHERE chamber='representatives' AND electorate IN ({placeholders})
-                    ORDER BY name
-                """, tuple(electorates_for_pc))
-                if not local_reps.empty:
-                    st.markdown("**Your House of Reps MP(s):**")
-                    for _, rep in local_reps.iterrows():
-                        st.markdown(f"- {rep['name']} *(_{rep['party']}_, {rep['electorate']})*")
-                st.divider()
-                for elec in sorted(electorates_for_pc):
-                    electorate_card(elec)
-            else:
-                st.markdown(
-                    "**Find your House of Reps MP:**  \n"
-                    "[Search AEC electorate finder →](https://electorate.aec.gov.au/)"
-                )
-        else:
-            st.warning("Postcode not recognised. Check and try again.")
-
-st.divider()
+# state_from_pc used by build_mp_tab for Senate filtering
+state_from_pc = None
 
 # ── Promise tracker summary ────────────────────────────────────────────────────
 _promise_summary = query("""
@@ -842,10 +803,10 @@ if n_compare > 0:
             st.rerun()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-(tab_reps, tab_senate, tab_indep, tab_divs, tab_bills, tab_votes,
+(tab_yourreps, tab_reps, tab_senate, tab_indep, tab_divs, tab_bills, tab_votes,
  tab_compare, tab_promises, tab_revolving, tab_media) = st.tabs([
-    "House of Reps", "Senate", "Independents", "Divisions", "False Divisions",
-    "Vote Explorer", "Compare", "Promises", "Revolving Door", "Media",
+    "Your Reps", "House of Reps", "Senate", "Independents", "Divisions",
+    "False Divisions", "Vote Explorer", "Compare", "Promises", "Revolving Door", "Media",
 ])
 
 
@@ -944,6 +905,194 @@ def build_mp_tab(chamber: str):
         "\\* Rebellion count is a career total from They Vote For You and may exceed "
         "what's visible in locally synced divisions."
     )
+
+
+# ── House of Reps ─────────────────────────────────────────────────────────────
+# ── Your Reps ──────────────────────────────────────────────────────────────────
+with tab_yourreps:
+    st.subheader("Your Representatives")
+    st.caption(
+        "Enter your postcode to find every politician who represents you — "
+        "from your local federal MP, to your state senators, to a guide on finding "
+        "your state and local council representatives. Australia has three levels of "
+        "government, each with its own elected representatives and responsibilities."
+    )
+
+    st.markdown("""
+**Three levels of government represent you:**
+
+| Level | Who represents you | What they control |
+|-------|-------------------|-------------------|
+| **Federal** | 1 House of Reps MP (your electorate) + ~12 Senators (your state) | Defence, immigration, taxation, Medicare, foreign affairs, telecommunications |
+| **State / Territory** | 1 state MP (your state electorate) + state upper house members | Health, education, police, transport, planning, environment |
+| **Local Council** | Councillors + Mayor (your ward / municipality) | Roads, rubbish, local planning, parks, libraries, community services |
+
+Most political attention focuses on federal politics, but state and local decisions often have
+a more direct impact on daily life — your hospital wait times, your children's school funding,
+your roads, and your planning approvals are all state or local responsibilities.
+""")
+
+    st.divider()
+
+    postcode_input = st.text_input(
+        "Enter your postcode",
+        max_chars=4,
+        placeholder="e.g. 3006",
+        key="yourreps_postcode",
+    )
+
+    if postcode_input:
+        state_from_pc = postcode_to_state(postcode_input)
+        if state_from_pc:
+            st.success(f"**{postcode_input}** → {state_from_pc}")
+
+            # ── Federal: House of Reps ─────────────────────────────────────────
+            st.markdown("### Federal — House of Representatives")
+            st.caption(
+                "Your local federal MP represents your electorate in the lower house. "
+                "They vote on national legislation and should be your first point of contact "
+                "for federal issues like Centrelink, Medicare, immigration, and taxation."
+            )
+            electorates_for_pc = query(
+                "SELECT electorate FROM postcode_electorates WHERE postcode = ?",
+                (postcode_input.strip(),)
+            )["electorate"].tolist()
+
+            if electorates_for_pc:
+                placeholders = ",".join("?" * len(electorates_for_pc))
+                local_reps = query(f"""
+                    SELECT p.id, p.name, p.party, p.electorate, p.state, p.photo_url,
+                           p.votes_attended, p.votes_possible, p.rebellions,
+                           COALESCE(a.heat_score, 0) AS heat_score,
+                           COALESCE(a.rhetoric_flags, '{{}}') AS flags_json
+                    FROM politicians p
+                    LEFT JOIN ai_analysis a ON a.politician_id = p.id
+                    WHERE p.chamber='representatives'
+                      AND p.electorate IN ({placeholders})
+                    ORDER BY p.name
+                """, tuple(electorates_for_pc))
+
+                if not local_reps.empty:
+                    import json as _json_yr
+                    local_reps["positive_score"] = local_reps["flags_json"].apply(
+                        lambda x: _json_yr.loads(x).get("positive_score", 0) if x and x != "{}" else 0
+                    )
+                    local_reps["attendance_%"] = local_reps.apply(
+                        lambda r: f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
+                        if r["votes_possible"] > 0 else "—", axis=1
+                    )
+                    st.markdown(
+                        f"**Your electorate{'s' if len(electorates_for_pc) > 1 else ''}:** "
+                        + ", ".join(f"**{e}**" for e in sorted(electorates_for_pc))
+                    )
+                    politician_grid(local_reps, tab_key="yourreps_fed")
+
+                for elec in sorted(electorates_for_pc):
+                    electorate_card(elec)
+            else:
+                st.info(
+                    f"No federal electorate mapping found for {postcode_input}. "
+                    "[Search the AEC electorate finder](https://electorate.aec.gov.au/)"
+                )
+
+            st.divider()
+
+            # ── Federal: Senate ────────────────────────────────────────────────
+            st.markdown("### Federal — Senate")
+            st.caption(
+                f"Senators represent your entire state or territory ({state_from_pc}). "
+                "Each state has 12 senators; each territory has 2. They review and amend "
+                "legislation passed by the House of Reps — the crossbench often holds the "
+                "balance of power here."
+            )
+            senators_df = query("""
+                SELECT p.id, p.name, p.party, p.electorate, p.state, p.photo_url,
+                       p.votes_attended, p.votes_possible, p.rebellions,
+                       COALESCE(a.heat_score, 0) AS heat_score,
+                       COALESCE(a.rhetoric_flags, '{}') AS flags_json
+                FROM politicians p
+                LEFT JOIN ai_analysis a ON a.politician_id = p.id
+                WHERE p.chamber='senate' AND p.state=?
+                ORDER BY p.name
+            """, (state_from_pc,))
+
+            if not senators_df.empty:
+                import json as _json_yr2
+                senators_df["positive_score"] = senators_df["flags_json"].apply(
+                    lambda x: _json_yr2.loads(x).get("positive_score", 0) if x and x != "{}" else 0
+                )
+                senators_df["attendance_%"] = senators_df.apply(
+                    lambda r: f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
+                    if r["votes_possible"] > 0 else "—", axis=1
+                )
+                politician_grid(senators_df, chamber="senate", tab_key="yourreps_sen")
+            else:
+                st.info(f"No senators found for {state_from_pc}.")
+
+            st.divider()
+
+            # ── State government ───────────────────────────────────────────────
+            STATE_PARL_URLS = {
+                "New South Wales": "https://www.parliament.nsw.gov.au/members",
+                "Victoria": "https://www.parliament.vic.gov.au/members",
+                "Queensland": "https://www.parliament.qld.gov.au/Members/Current-Members",
+                "South Australia": "https://www.parliament.sa.gov.au/Members",
+                "Western Australia": "https://www.parliament.wa.gov.au/parliament/memblist.nsf",
+                "Tasmania": "https://www.parliament.tas.gov.au/Members",
+                "Australian Capital Territory": "https://www.parliament.act.gov.au/Members",
+                "Northern Territory": "https://parliament.nt.gov.au/Members",
+            }
+            st.markdown("### State / Territory Government")
+            st.caption(
+                f"Your state or territory government ({state_from_pc}) runs hospitals, "
+                "schools, police, roads, public transport, and housing policy. State elections "
+                "are held separately from federal elections. Your state electorate may differ "
+                "from your federal electorate."
+            )
+            parl_url = STATE_PARL_URLS.get(state_from_pc, "")
+            st.markdown(
+                f"Polygraph currently tracks federal politicians only. "
+                f"Find your state representatives here:"
+            )
+            if parl_url:
+                st.markdown(f"[{state_from_pc} Parliament — Find your member]({parl_url})")
+            else:
+                st.markdown("[Search your state parliament's website]")
+
+            st.divider()
+
+            # ── Local council ──────────────────────────────────────────────────
+            st.markdown("### Local Council")
+            st.caption(
+                "Your local council manages roads, rubbish collection, parks, libraries, "
+                "local planning decisions, and community services. Councillors are elected "
+                "in local government elections held on different cycles to state and federal."
+            )
+            st.markdown(
+                "Find your local council and councillors using the links below:"
+            )
+
+            LOCAL_GOV_URLS = {
+                "New South Wales": ("https://www.olg.nsw.gov.au/find-my-council/", "NSW — Find my council"),
+                "Victoria": ("https://www.localgovernment.vic.gov.au/find-your-council", "VIC — Find your council"),
+                "Queensland": ("https://www.dlgrma.qld.gov.au/local-government-directory", "QLD — Local government directory"),
+                "South Australia": ("https://www.lga.sa.gov.au/about/councils", "SA — Council directory"),
+                "Western Australia": ("https://www.dlgsc.wa.gov.au/local-government/local-governments/local-government-directory", "WA — LG directory"),
+                "Tasmania": ("https://www.dpac.tas.gov.au/divisions/local_government", "TAS — Local government"),
+                "Australian Capital Territory": ("https://www.act.gov.au/", "ACT — No separate local councils (ACT government handles local services)"),
+                "Northern Territory": ("https://www.dlghcd.nt.gov.au/local-government", "NT — Local government"),
+            }
+            lg = LOCAL_GOV_URLS.get(state_from_pc)
+            if lg:
+                if "No separate" in lg[1]:
+                    st.info(lg[1])
+                else:
+                    st.markdown(f"[{lg[1]}]({lg[0]})")
+            else:
+                st.markdown("Search your state's local government website.")
+
+        else:
+            st.warning("Postcode not recognised. Check and try again.")
 
 
 # ── House of Reps ─────────────────────────────────────────────────────────────
