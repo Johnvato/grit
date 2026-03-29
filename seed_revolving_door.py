@@ -276,6 +276,33 @@ CASES = [
         "cooling_off_months": 6,
         "source_url": "https://www.smh.com.au/politics/federal/alexander-downer-joins-woodside-board-20200716-p55cqu.html",
     },
+    {
+        "name": "Scott Morrison",
+        "party": "Liberal Party",
+        "last_office": "Prime Minister (2018–2022)",
+        "left_office_year": 2023,
+        "post_office_role": "Senior adviser / consultant",
+        "employer": "Pottinger (advisory firm), multiple speaking engagements, US–Australia strategic advisory roles",
+        "sector": "Consulting / Strategic Advisory",
+        "conflict_summary": (
+            "As Prime Minister, Morrison oversaw the AUKUS submarine deal, COVID-19 pandemic "
+            "response (including vaccine procurement and JobKeeper), energy policy, and secretly "
+            "appointed himself to five additional ministerial portfolios (Health, Finance, Treasury, "
+            "Resources, Home Affairs) without public knowledge — a constitutional scandal confirmed "
+            "by the Bell inquiry. After leaving parliament in 2023, he joined Pottinger, an advisory "
+            "firm specialising in cross-border deals and strategic advice in the Indo-Pacific, "
+            "directly leveraging relationships built during AUKUS negotiations. He also pursued "
+            "international speaking engagements and advisory work on security and trade — areas "
+            "where his prime ministerial access provides commercially valuable connections."
+        ),
+        "portfolio_overlap": (
+            "Prime Minister who negotiated AUKUS, managed COVID contracts worth tens of billions, "
+            "and secretly held five ministerial portfolios → strategic consultant advising on "
+            "Indo-Pacific defence and trade deals, the exact domain of his PM-era decisions."
+        ),
+        "cooling_off_months": 3,
+        "source_url": "https://www.afr.com/politics/federal/scott-morrison-to-join-advisory-firm-pottinger-20230712-p5dnwp",
+    },
 ]
 
 
