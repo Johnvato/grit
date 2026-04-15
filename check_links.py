@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Nightly link checker for Pollygraph.
+"""Link checker for Pollygraph (runs every 4 hours via GitHub Actions).
 
-Scans app.py for every URL, HEAD-checks each one, and for any that
-return 4xx/5xx (or timeout) attempts to swap the URL for a working
-Wayback Machine snapshot.  Writes a summary to stdout and, if any
-links were replaced, updates app.py in-place so the GitHub Action
-can commit the change.
+Scans app.py for every URL, checks each one, and for broken links:
+  1. Tries to replace with a Wayback Machine archived snapshot.
+  2. If no archive exists, removes the broken link from app.py.
+
+For controversy source tuples like  ("label", "https://..."),
+the entire tuple line is removed.  For standalone URLs embedded
+in markdown or HTML, the URL (and any wrapping anchor/link) is
+stripped.  Writes a summary to stdout.
 """
 
 import re
@@ -56,8 +59,7 @@ def check_url(url: str) -> tuple[int | None, str]:
             return (resp.status, resp.reason)
     except urllib.error.HTTPError as e:
         return (e.code, str(e.reason))
-    except Exception as e:
-        # Retry with GET — some servers reject HEAD
+    except Exception:
         req_get = urllib.request.Request(url, method="GET", headers={
             "User-Agent": "PollygraphLinkChecker/1.0",
         })
@@ -87,6 +89,40 @@ def wayback_url(original: str) -> str | None:
     return None
 
 
+def remove_broken_link(source: str, url: str) -> str:
+    """Remove a broken link from the source code.
+
+    Handles these patterns (most specific first):
+      1. Source tuple line:  ("label", "https://..."),
+      2. Markdown link:     [text](https://...)
+      3. HTML anchor:       <a href="https://...">...</a>
+      4. Bare URL in a string
+    """
+    # Pattern 1: controversy source tuple — remove entire line
+    # e.g.   ("ABC News — whatever", "https://broken.example.com/path"),
+    tuple_re = re.compile(
+        r'[ \t]*\(".*?",\s*"' + re.escape(url) + r'"\),?\s*\n',
+    )
+    if tuple_re.search(source):
+        return tuple_re.sub("", source)
+
+    # Pattern 2: markdown link [label](url) → remove the whole link
+    md_re = re.compile(r'\[([^\]]*)\]\(' + re.escape(url) + r'\)')
+    if md_re.search(source):
+        return md_re.sub("", source)
+
+    # Pattern 3: HTML <a> tag wrapping the URL → remove entire tag
+    a_re = re.compile(
+        r'<a\s[^>]*href="' + re.escape(url) + r'"[^>]*>.*?</a>',
+        re.DOTALL,
+    )
+    if a_re.search(source):
+        return a_re.sub("", source)
+
+    # Pattern 4: bare URL in a quoted string → remove just the URL
+    return source.replace(url, "")
+
+
 def main():
     source = APP_PY.read_text()
     urls = extract_urls(source)
@@ -103,7 +139,7 @@ def main():
         else:
             broken.append((url, status, reason))
             print(f"  FAIL {status} {url}  ({reason})")
-        time.sleep(0.3)  # polite delay
+        time.sleep(0.3)
 
     print(f"\n{ok_count} OK, {len(broken)} broken\n")
 
@@ -112,7 +148,9 @@ def main():
         return
 
     replaced = 0
+    removed = 0
     updated_source = source
+
     for url, status, reason in broken:
         wb = wayback_url(url)
         if wb:
@@ -120,19 +158,20 @@ def main():
             updated_source = updated_source.replace(url, wb)
             replaced += 1
         else:
-            print(f"  NO ARCHIVE for {url}")
+            print(f"  REMOVE  {url}  (no archive available)")
+            updated_source = remove_broken_link(updated_source, url)
+            removed += 1
 
-    if replaced:
+    if replaced or removed:
         APP_PY.write_text(updated_source)
-        print(f"\nReplaced {replaced} broken link(s) in app.py")
+        parts = []
+        if replaced:
+            parts.append(f"{replaced} replaced with archive")
+        if removed:
+            parts.append(f"{removed} removed")
+        print(f"\nUpdated app.py: {', '.join(parts)}.")
     else:
-        print("\nNo archive replacements available.")
-
-    # Exit with code 1 if any broken links remain unfixed
-    unfixed = len(broken) - replaced
-    if unfixed:
-        print(f"\n⚠ {unfixed} broken link(s) could not be auto-fixed.")
-        sys.exit(1)
+        print("\nNo changes needed.")
 
 
 if __name__ == "__main__":
