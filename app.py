@@ -10,6 +10,12 @@ import math as _math_geo
 st.set_page_config(page_title="Pollygraph", layout="wide", page_icon="assets/parrot_icon.png")
 
 # ── Theme-aware logo helper ───────────────────────────────────────────────────
+# st.context.theme.type can be wrong on the very first render of a session,
+# so we force one rerun to let it settle.
+if "theme_settled" not in st.session_state:
+    st.session_state.theme_settled = True
+    st.rerun()
+
 def _logo_path():
     try:
         is_light = st.context.theme.type == "light"
