@@ -1291,29 +1291,37 @@ your roads, and your planning approvals are all state or local responsibilities.
 
 # ── Current Government ─────────────────────────────────────────────────────────
 def build_current_gov_tab():
-    # ── Feature cards ─────────────────────────────────────────────────────────
-    card_left, card_right = st.columns(2, gap="large")
-    with card_left:
-        with st.container(border=True):
-            st.subheader("Call out the ~~bull~~parrotshit")
-            st.write(
-                "Pollygraph tracks what pollies say, how the media spins it, "
-                "and compares it all to how they actually vote on the stuff "
-                "that impacts you."
-            )
-    with card_right:
-        with st.container(border=True):
-            st.subheader("Clean up the ~~bull~~parrotshit")
-            st.write(
-                "Pollies work for you, find your federal and state "
-                "representatives by entering your postcode, then write them a letter "
-                "calling them out on their parrotshit. It works and we have templates."
-            )
-
-    # ── Value proposition ─────────────────────────────────────────────────────
+    # ── Feature cards + value prop ────────────────────────────────────────────
     st.markdown(
-        "*Pollygraph gives you the actual votes, the actual quotes, and the actual "
-        "track record, so you can walk into any conversation armed with facts, not vibes.*"
+        '<div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:12px">'
+
+        '<div style="flex:1;min-width:260px;border-left:4px solid #e94560;'
+        'border:1px solid rgba(128,128,128,0.2);border-left:4px solid #e94560;'
+        'border-radius:0 8px 8px 0;padding:14px 16px">'
+        '<div style="font-size:15px;font-weight:700;margin-bottom:4px">'
+        'Call out the <s>bull</s>parrotshit</div>'
+        '<div style="font-size:13px;line-height:1.5;opacity:0.8">'
+        'Pollygraph tracks what pollies say, how the media spins it, '
+        'and compares it all to how they actually vote on the stuff '
+        'that impacts you.</div></div>'
+
+        '<div style="flex:1;min-width:260px;border-left:4px solid #27ae60;'
+        'border:1px solid rgba(128,128,128,0.2);border-left:4px solid #27ae60;'
+        'border-radius:0 8px 8px 0;padding:14px 16px">'
+        '<div style="font-size:15px;font-weight:700;margin-bottom:4px">'
+        'Clean up the <s>bull</s>parrotshit</div>'
+        '<div style="font-size:13px;line-height:1.5;opacity:0.8">'
+        'Pollies work for you, find your federal and state '
+        'representatives by entering your postcode, then write them a letter '
+        'calling them out on their parrotshit. It works and we have templates.</div></div>'
+
+        '</div>'
+
+        '<div style="font-size:14px;font-style:italic;line-height:1.6;opacity:0.6;'
+        'margin-bottom:8px">'
+        'Pollygraph gives you the actual votes, the actual quotes, and the actual '
+        'track record, so you can walk into any conversation armed with facts, not vibes.</div>',
+        unsafe_allow_html=True,
     )
 
     st.divider()
