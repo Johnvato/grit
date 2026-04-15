@@ -41,10 +41,14 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python sync_data.py
 
-      - name: Commit updated database
+      - name: Check links and fix broken ones
+        run: python check_links.py || true
+
+      - name: Commit updated database and any link fixes
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'bot@noreply.github.com'
-          git add grit_cache.db
-          git commit -m "Automated database sync $(date -u +%Y-%m-%d)" || exit 0
+          git add grit_cache.db app.py
+          git diff --cached --quiet && exit 0
+          git commit -m "Automated sync + link check $(date -u +%Y-%m-%d)"
           git push

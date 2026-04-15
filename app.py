@@ -34,13 +34,22 @@ def _check_password():
         return True
     if st.session_state.get("authenticated"):
         return True
+    st.markdown(
+        '<style>'
+        '#_pw-container { max-width: 320px; margin: 0 auto; }'
+        '[data-testid="stVerticalBlock"] { align-items: center; }'
+        '</style>',
+        unsafe_allow_html=True,
+    )
     _theme_logo(260)
-    pwd = st.text_input("Enter password to continue", type="password", key="_pw")
-    if pwd and pwd == correct:
-        st.session_state.authenticated = True
-        st.rerun()
-    elif pwd:
-        st.error("Incorrect password.")
+    col_l, col_c, col_r = st.columns([1, 2, 1])
+    with col_c:
+        pwd = st.text_input("Enter password to continue", type="password", key="_pw")
+        if pwd and pwd == correct:
+            st.session_state.authenticated = True
+            st.rerun()
+        elif pwd:
+            st.error("Incorrect password.")
     st.stop()
 
 _check_password()
