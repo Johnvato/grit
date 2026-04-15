@@ -779,8 +779,8 @@ st.markdown(
     '</div>'
 
     '<div style="font-size:14px;font-weight:500;line-height:1.5;color:#aaa">'
-    'Pollygraph gives you the actual votes, the actual quotes, and the actual track record, '
-    'so you can walk into any conversation armed with facts, not vibes.</div>'
+    'Pollygraph gives you the actual votes, quotes, and conflicts of interest of all politicians, '
+    'so you can bring facts into the conversations and voting booths.</div>'
 
     '</div>'
     '</div>',
