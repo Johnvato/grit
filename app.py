@@ -2653,7 +2653,21 @@ the system, making it harder to identify and challenge.
                     f'<div style="font-size:13px;color:#000;padding:4px 0">{b["criticism"]}</div>',
                     unsafe_allow_html=True,
                 )
-                if b.get("criticism_source"):
+                if b.get("criticism_urls"):
+                    _crit_links = []
+                    for _pair in b["criticism_urls"].split("||"):
+                        _pair = _pair.strip()
+                        if "|" in _pair:
+                            _lbl, _url = _pair.split("|", 1)
+                            _crit_links.append(
+                                f'<a href="{_url}" target="_blank" style="display:inline-block;'
+                                f'font-size:11px;color:#fff;background:#8e24aa;padding:3px 10px;'
+                                f'border-radius:12px;text-decoration:none;margin:2px 2px 2px 0;'
+                                f'opacity:.85">{_lbl}</a>'
+                            )
+                    if _crit_links:
+                        st.markdown(" &nbsp;".join(_crit_links), unsafe_allow_html=True)
+                elif b.get("criticism_source"):
                     st.caption(f"Sources: {b['criticism_source']}")
 
             if b.get("defence"):

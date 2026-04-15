@@ -397,17 +397,17 @@ def seed(clear_first: bool = True):
             INSERT INTO controversial_bills
                 (title, short_name, category, year, status,
                  official_purpose, hidden_impact, who_benefits, who_loses,
-                 key_provisions, criticism, criticism_source, defence,
-                 source_url, added_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 key_provisions, criticism, criticism_source, criticism_urls,
+                 defence, source_url, added_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             b["title"], b.get("short_name", ""), b["category"],
             b.get("year"), b.get("status", ""),
             b.get("official_purpose", ""), b.get("hidden_impact", ""),
             b.get("who_benefits", ""), b.get("who_loses", ""),
             b.get("key_provisions", ""), b.get("criticism", ""),
-            b.get("criticism_source", ""), b.get("defence", ""),
-            b.get("source_url", ""), TODAY,
+            b.get("criticism_source", ""), b.get("criticism_urls", ""),
+            b.get("defence", ""), b.get("source_url", ""), TODAY,
         ))
 
     conn.commit()
