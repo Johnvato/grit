@@ -758,32 +758,37 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── Value proposition ─────────────────────────────────────────────────────────
+# ── Feature cards ─────────────────────────────────────────────────────────────
 st.markdown(
-    '<div style="background:linear-gradient(135deg, rgba(39,174,96,0.08), rgba(52,152,219,0.08));'
-    'border:1px solid rgba(128,128,128,0.15);border-radius:10px;padding:20px 24px;margin:8px 0 20px">'
+    '<div style="display:flex;flex-wrap:wrap;gap:24px;margin:8px 0 16px">'
 
-    '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px">'
-
-    '<div style="flex:1;min-width:200px;border-left:3px solid #e94560;padding:6px 12px">'
-    '<div style="font-size:13px;font-weight:600">Call out the <s>bull</s>parrotshit</div>'
-    '<div style="font-size:12px;color:#888">Pollygraph tracks what pollies say, how the media '
+    '<div style="flex:1;min-width:220px;border-left:3px solid #e94560;'
+    'background:rgba(233,69,96,0.06);border-radius:0 8px 8px 0;padding:16px">'
+    '<div style="font-size:16px;font-weight:700;margin-bottom:6px">'
+    'Call out the <s>bull</s>parrotshit</div>'
+    '<div style="font-size:14px;font-weight:400;color:#ccc;line-height:1.5">'
+    'Pollygraph tracks what pollies say, how the media '
     'spins it, and compares it all to how they actually vote on the stuff that impacts you.</div></div>'
 
-    '<div style="flex:1;min-width:200px;border-left:3px solid #27ae60;padding:6px 12px">'
-    '<div style="font-size:13px;font-weight:600">Clean up the <s>bull</s>parrotshit</div>'
-    '<div style="font-size:12px;color:#888">Enter your postcode to find your federal and state '
-    'representatives, then write them a letter calling them out on their parrotshit. '
-    'It actually works. We have templates.</div></div>'
+    '<div style="flex:1;min-width:220px;border-left:3px solid #27ae60;'
+    'background:rgba(39,174,96,0.06);border-radius:0 8px 8px 0;padding:16px">'
+    '<div style="font-size:16px;font-weight:700;margin-bottom:6px">'
+    'Clean up the <s>bull</s>parrotshit</div>'
+    '<div style="font-size:14px;font-weight:400;color:#ccc;line-height:1.5">'
+    'Pollies work for you, find your federal and state '
+    'representatives by entering your postcode, then write them a letter calling them out on their parrotshit. '
+    'It works and we have templates.</div></div>'
 
-    '</div>'
-
-    '<div style="font-size:14px;font-weight:500;line-height:1.5;color:#aaa">'
-    'Pollygraph gives you the actual votes, quotes, and conflicts of interest of all politicians, '
-    'so you can bring facts into the conversations and voting booths.</div>'
-
-    '</div>'
     '</div>',
+    unsafe_allow_html=True,
+)
+
+# ── Value proposition ─────────────────────────────────────────────────────────
+st.markdown(
+    '<div style="font-size:16px;font-weight:500;line-height:1.6;color:#aaa;'
+    'margin:0 0 24px;padding:0 4px">'
+    'Pollygraph gives you the actual votes, the actual quotes, and the actual '
+    'track record, so you can walk into any conversation armed with facts, not vibes.</div>',
     unsafe_allow_html=True,
 )
 
