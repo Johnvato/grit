@@ -6,22 +6,26 @@ import folium
 from streamlit_folium import st_folium
 import requests as _req_geo
 import math as _math_geo
+import base64 as _b64
 
 st.set_page_config(page_title="Pollygraph", layout="wide", page_icon="assets/parrot_icon.png")
 
 # ── Theme-aware logo helper ───────────────────────────────────────────────────
-# st.context.theme.type can be wrong on the very first render of a session,
-# so we force one rerun to let it settle.
-if "theme_settled" not in st.session_state:
-    st.session_state.theme_settled = True
-    st.rerun()
+@st.cache_data
+def _logo_b64(path: str) -> str:
+    with open(path, "rb") as f:
+        return _b64.b64encode(f.read()).decode()
 
-def _logo_path():
-    try:
-        is_light = st.context.theme.type == "light"
-    except Exception:
-        is_light = False
-    return "assets/logo_light_bg.png" if is_light else "assets/logo_dark_bg.png"
+def _theme_logo(width: int = 280):
+    dark = _logo_b64("assets/logo_dark_bg.png")
+    light = _logo_b64("assets/logo_light_bg.png")
+    st.markdown(
+        f'<picture>'
+        f'<source srcset="data:image/png;base64,{dark}" media="(prefers-color-scheme: dark)">'
+        f'<img src="data:image/png;base64,{light}" width="{width}" style="max-width:100%">'
+        f'</picture>',
+        unsafe_allow_html=True,
+    )
 
 # ── Password gate ─────────────────────────────────────────────────────────────
 def _check_password():
@@ -30,7 +34,7 @@ def _check_password():
         return True
     if st.session_state.get("authenticated"):
         return True
-    st.image(_logo_path(), width=260)
+    _theme_logo(260)
     pwd = st.text_input("Enter password to continue", type="password", key="_pw")
     if pwd and pwd == correct:
         st.session_state.authenticated = True
@@ -765,7 +769,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Header (logo) ─────────────────────────────────────────────────────────────
-st.image(_logo_path(), width=280)
+_theme_logo(280)
 st.markdown(
     '<div style="font-size:14px;color:#888;margin-top:-8px">'
     'Cut through the <s>bull</s>parrotshit.</div>',
