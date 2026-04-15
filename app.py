@@ -1553,9 +1553,9 @@ after losing government in 2022. Key factors in their result:
             ),
             "colour": "#e94560",
             "sources": [
-                ("ABC News — AUKUS explained", "https://www.abc.net.au/news/2023-03-14/aukus-nuclear-submarine-deal-explained/102066968"),
-                ("The Guardian — submarine cost blowout", "https://www.theguardian.com/australia-news/2023/mar/14/aukus-submarine-deal-australia-cost"),
-                ("Australian Strategic Policy Institute", "https://www.aspi.org.au/report/aukus"),
+                ("ABC News — what is AUKUS?", "https://www.abc.net.au/news/2023-03-14/what-is-aukus-submarine-deal-details-announced/102091510"),
+                ("ABC News — inside the $8b Perth sub base", "https://www.abc.net.au/news/2025-09-12/inside-the-aukus-plan-to-station-american-subs-near-perth/105763818"),
+                ("BBC — AUKUS deal explained", "https://www.bbc.com/news/articles/cgr589k5yleo"),
             ],
         },
         {
@@ -1569,8 +1569,8 @@ after losing government in 2022. Key factors in their result:
             "colour": "#f5a623",
             "sources": [
                 ("ABC News — housing crisis explained", "https://www.abc.net.au/news/2023-09-14/housing-crisis-australia-explained/102846108"),
-                ("The Guardian — cost of living tracker", "https://www.theguardian.com/australia-news/series/cost-of-living-crisis-australia"),
-                ("Grattan Institute — housing policy", "https://grattan.edu.au/report/the-great-australian-nightmare/"),
+                ("Grattan Institute — more homes, better cities", "https://grattan.edu.au/report/more-homes-better-cities/"),
+                ("Grattan Institute — to fix the economy, fix housing", "https://grattan.edu.au/news/to-fix-the-economy-fix-housing/"),
             ],
         },
         {
@@ -1583,9 +1583,9 @@ after losing government in 2022. Key factors in their result:
             ),
             "colour": "#2980b9",
             "sources": [
-                ("ABC News — renewables target tracker", "https://www.abc.net.au/news/2024-01-18/renewables-target-2030-progress-check/103355182"),
-                ("The Guardian — nuclear vs renewables debate", "https://www.theguardian.com/australia-news/2024/jun/19/coalition-nuclear-energy-policy-explained"),
-                ("AEMO — Integrated System Plan", "https://aemo.com.au/energy-systems/major-publications/integrated-system-plan-isp"),
+                ("ABC News — renewables pass 50% milestone", "https://www.abc.net.au/news/2026-01-29/australia-hits-power-demand-record-as-renewables-pass-50pc/106280246"),
+                ("ABC News — emissions progress to 2030", "https://abc.net.au/news/2025-11-29/record-drop-in-australias-emissions/106074296"),
+                ("AEMO — Draft 2026 Integrated System Plan", "https://aemo.com.au/energy-systems/major-publications/integrated-system-plan-isp/2026-integrated-system-plan-isp"),
             ],
         },
         {
@@ -1599,8 +1599,8 @@ after losing government in 2022. Key factors in their result:
             "colour": "#8e24aa",
             "sources": [
                 ("ABC News — political donations explained", "https://www.abc.net.au/news/2022-02-01/political-donations-explained-who-gives-what/100793498"),
-                ("The Guardian — lobbying and the revolving door", "https://www.theguardian.com/australia-news/2023/sep/25/lobbying-revolving-door-australia-politics"),
-                ("Transparency International Australia", "https://transparency.org.au/australia-political-integrity/"),
+                ("Transparency International — integrity pack 2025", "https://transparency.org.au/integrity-pack/"),
+                ("Transparency International — a better kind of politics", "https://transparency.org.au/better-politics/"),
             ],
         },
         {
@@ -1614,7 +1614,7 @@ after losing government in 2022. Key factors in their result:
             "colour": "#e67e22",
             "sources": [
                 ("ABC News — record migration explained", "https://www.abc.net.au/news/2023-12-15/net-overseas-migration-record-high-explained/103233616"),
-                ("The Guardian — visa changes and impact", "https://www.theguardian.com/australia-news/2024/may/13/australia-immigration-migration-changes-explained"),
+                ("ABC News — migration 'surge' talk overblown", "https://www.abc.net.au/news/2025-03-30/migration-already-falling-despite-election-debate-over-surge/105111118"),
                 ("Lowy Institute — immigration attitudes", "https://www.lowyinstitute.org/publications/lowy-institute-poll-2024"),
             ],
         },
@@ -1649,7 +1649,7 @@ after losing government in 2022. Key factors in their result:
             "sources": [
                 ("ABC News — who owns Australia's media", "https://www.abc.net.au/news/2021-03-03/who-owns-australian-media/13196164"),
                 ("The Conversation — media concentration risks", "https://theconversation.com/australian-media-concentration-is-among-the-worst-in-the-world-107599"),
-                ("ACCC — Digital Platforms Inquiry", "https://www.accc.gov.au/inquiries-and-consultations/digital-platforms-inquiry"),
+                ("ACCC — Digital Platforms Inquiry final report", "https://www.accc.gov.au/inquiries-and-consultations/digital-platform-services-inquiry-2020-25/march-2025-final-report"),
             ],
         },
     ]
