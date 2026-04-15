@@ -885,6 +885,9 @@ if n_compare > 0:
     "How AI Works",
 ])
 
+days_left = days_until(NEXT_ELECTION)
+mandate_pct = round(100 * (1 - days_left / (NEXT_ELECTION - LAST_ELECTION).days), 1)
+
 
 def build_mp_tab(chamber: str):
     parties = query(
@@ -1369,15 +1372,8 @@ def build_current_gov_tab():
 
     st.divider()
 
-    # ── Government overview ───────────────────────────────────────────────────
-    st.subheader("The Current Government")
-    st.caption(
-        "A snapshot of who governs Australia right now — how they got here, what they promised, "
-        "and the issues that have defined their term so far."
-    )
-
-    # ── Election Promises (at the top) ────────────────────────────────────────
-    st.markdown("#### 2025 Election Promises")
+    # ── Current government mandates ───────────────────────────────────────────
+    st.markdown("#### Current government mandates")
     st.caption(
         "How is the government tracking against what it promised? "
         "Full detail for all parties is in the Promises tab."
@@ -1417,95 +1413,6 @@ def build_current_gov_tab():
                     st.markdown(f"**{_cat}**")
                     _cat_df = _gov_promises[_gov_promises["category"] == _cat]
                     st.markdown(_promise_list_html(_cat_df), unsafe_allow_html=True)
-
-    st.divider()
-
-    # ── Election result summary ───────────────────────────────────────────────
-    _em = query("""
-        SELECT winning_party,
-               COUNT(*) AS seats,
-               ROUND(AVG(margin_pct), 1) AS avg_margin,
-               ROUND(AVG(swing), 1) AS avg_swing
-        FROM electorate_margins
-        GROUP BY winning_party
-        ORDER BY seats DESC
-    """)
-
-    _party_seats = query("""
-        SELECT party, chamber, COUNT(*) AS n
-        FROM politicians
-        WHERE party NOT IN ('SPK', 'PRES', 'DPRES', 'CWM')
-        GROUP BY party, chamber
-    """)
-
-    total_seats = 151
-    alp_seats = int(_em[_em["winning_party"] == "ALP"]["seats"].sum()) if not _em.empty else 0
-    coalition_seats = int(_em[_em["winning_party"].isin(["LP", "LNP", "NP"])]["seats"].sum()) if not _em.empty else 0
-    others_seats = total_seats - alp_seats - coalition_seats
-    majority_line = (total_seats // 2) + 1
-    alp_majority = alp_seats - majority_line
-    alp_pct = round(100 * alp_seats / total_seats)
-    coal_pct = round(100 * coalition_seats / total_seats)
-
-    st.markdown("**2025 Federal Election** · 3 May · ALP re-elected")
-    st.markdown(
-        f"**ALP {alp_seats}** · Coalition {coalition_seats} · "
-        f"Others {others_seats} · Majority {majority_line} · "
-        f"**ALP {'+'if alp_majority>=0 else ''}{alp_majority}**"
-    )
-    st.progress(alp_seats / total_seats)
-    st.caption(
-        f"Government: ALP (Albanese). Opposition: Coalition (Ley). "
-        f"{alp_seats} of {total_seats} seats — majority by {alp_majority}."
-    )
-
-    st.divider()
-
-    # ── Where other parties failed ────────────────────────────────────────────
-    st.markdown("#### Where the other parties fell short")
-
-    if not _em.empty:
-        for party_code, party_name, colour in [
-            ("LP", "Liberal Party", "#1565c0"),
-            ("LNP", "Liberal National Party", "#1565c0"),
-            ("NP", "National Party", "#1b5e20"),
-        ]:
-            pdata = _em[_em["winning_party"] == party_code]
-            if pdata.empty:
-                continue
-            p_seats = int(pdata["seats"].sum())
-            p_margin = float(pdata["avg_margin"].iloc[0])
-            p_swing = float(pdata["avg_swing"].iloc[0])
-
-            st.markdown(
-                f'<div style="border-left:4px solid {colour};padding:8px 14px;'
-                f'margin:6px 0;border-radius:0 6px 6px 0">'
-                f'<div style="font-size:14px;font-weight:700">{party_name}</div>'
-                f'<div style="font-size:13px;color:#aaa;margin-top:4px">'
-                f'{p_seats} seat{"s" if p_seats != 1 else ""} held '
-                f'&nbsp;·&nbsp; Average margin: {p_margin}% '
-                f'&nbsp;·&nbsp; Average swing: {p_swing:+.1f}%'
-                f'</div></div>',
-                unsafe_allow_html=True,
-            )
-
-    st.markdown("""
-The **Coalition** (Liberal, LNP, and Nationals) entered the 2025 election under Peter Dutton
-after losing government in 2022. Key factors in their result:
-
-- **Teal losses held** — The independent candidates who won traditionally safe Liberal seats in 2022
-  (Kooyong, Goldstein, North Sydney, Wentworth, and others) largely held those seats, denying the
-  Liberals a path back to their pre-2022 position.
-- **Climate and integrity** — Voters in affluent urban seats continued to punish the Coalition for
-  its stance on climate policy and its opposition to a federal integrity commission during the
-  Morrison years.
-- **Regional squeeze** — The Nationals faced pressure from independents and minor parties in
-  regional seats, particularly on issues like water management, health services, and renewables.
-- **Senate fragmentation** — Minor parties and independents continued to win Senate seats at
-  Coalition expense, further limiting their ability to block legislation.
-""")
-
-    st.divider()
 
     # ── Controversies and influences ──────────────────────────────────────────
     st.markdown("#### Controversies & influences shaping this term")
@@ -1637,6 +1544,93 @@ after losing government in 2022. Key factors in their result:
                 f'<div style="margin-top:8px">{source_links}</div>',
                 unsafe_allow_html=True,
             )
+
+    st.divider()
+
+    # ── Election result summary ───────────────────────────────────────────────
+    _em = query("""
+        SELECT winning_party,
+               COUNT(*) AS seats,
+               ROUND(AVG(margin_pct), 1) AS avg_margin,
+               ROUND(AVG(swing), 1) AS avg_swing
+        FROM electorate_margins
+        GROUP BY winning_party
+        ORDER BY seats DESC
+    """)
+
+    _party_seats = query("""
+        SELECT party, chamber, COUNT(*) AS n
+        FROM politicians
+        WHERE party NOT IN ('SPK', 'PRES', 'DPRES', 'CWM')
+        GROUP BY party, chamber
+    """)
+
+    total_seats = 151
+    alp_seats = int(_em[_em["winning_party"] == "ALP"]["seats"].sum()) if not _em.empty else 0
+    coalition_seats = int(_em[_em["winning_party"].isin(["LP", "LNP", "NP"])]["seats"].sum()) if not _em.empty else 0
+    others_seats = total_seats - alp_seats - coalition_seats
+    majority_line = (total_seats // 2) + 1
+    alp_majority = alp_seats - majority_line
+    alp_pct = round(100 * alp_seats / total_seats)
+    coal_pct = round(100 * coalition_seats / total_seats)
+
+    st.markdown("**2025 Federal Election** · 3 May · ALP re-elected")
+    st.markdown(
+        f"**ALP {alp_seats}** · Coalition {coalition_seats} · "
+        f"Others {others_seats} · Majority {majority_line} · "
+        f"**ALP {'+'if alp_majority>=0 else ''}{alp_majority}**"
+    )
+    st.progress(alp_seats / total_seats)
+    st.caption(
+        f"Government: ALP (Albanese). Opposition: Coalition (Ley). "
+        f"{alp_seats} of {total_seats} seats — majority by {alp_majority}."
+    )
+
+    st.divider()
+
+    # ── Where other parties failed ────────────────────────────────────────────
+    st.markdown("#### 2025 election results")
+
+    if not _em.empty:
+        for party_code, party_name, colour in [
+            ("LP", "Liberal Party", "#1565c0"),
+            ("LNP", "Liberal National Party", "#1565c0"),
+            ("NP", "National Party", "#1b5e20"),
+        ]:
+            pdata = _em[_em["winning_party"] == party_code]
+            if pdata.empty:
+                continue
+            p_seats = int(pdata["seats"].sum())
+            p_margin = float(pdata["avg_margin"].iloc[0])
+            p_swing = float(pdata["avg_swing"].iloc[0])
+
+            st.markdown(
+                f'<div style="border-left:4px solid {colour};padding:8px 14px;'
+                f'margin:6px 0;border-radius:0 6px 6px 0">'
+                f'<div style="font-size:14px;font-weight:700">{party_name}</div>'
+                f'<div style="font-size:13px;color:#aaa;margin-top:4px">'
+                f'{p_seats} seat{"s" if p_seats != 1 else ""} held '
+                f'&nbsp;·&nbsp; Average margin: {p_margin}% '
+                f'&nbsp;·&nbsp; Average swing: {p_swing:+.1f}%'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("""
+The **Coalition** (Liberal, LNP, and Nationals) entered the 2025 election under Peter Dutton
+after losing government in 2022. Key factors in their result:
+
+- **Teal losses held** — The independent candidates who won traditionally safe Liberal seats in 2022
+  (Kooyong, Goldstein, North Sydney, Wentworth, and others) largely held those seats, denying the
+  Liberals a path back to their pre-2022 position.
+- **Climate and integrity** — Voters in affluent urban seats continued to punish the Coalition for
+  its stance on climate policy and its opposition to a federal integrity commission during the
+  Morrison years.
+- **Regional squeeze** — The Nationals faced pressure from independents and minor parties in
+  regional seats, particularly on issues like water management, health services, and renewables.
+- **Senate fragmentation** — Minor parties and independents continued to win Senate seats at
+  Coalition expense, further limiting their ability to block legislation.
+""")
 
 
 with tab_currentgov:
