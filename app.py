@@ -1953,7 +1953,7 @@ with tab_divs:
         )
         st.dataframe(
             divs[["date", "house", "name", "aye_votes", "no_votes", "rebellions"]],
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
         row = divs.loc[div_options[selected_label]]
@@ -2079,189 +2079,170 @@ with tab_votes:
                     unsafe_allow_html=True,
                 )
 
-                progress_bar = (
-                    '<div style="height:3px;background:#222;border-radius:2px;'
-                    'margin:6px 0 2px 0;overflow:hidden">'
-                    '<div style="height:100%;background:linear-gradient(to right,#e74c3c,#27ae60);'
-                    'animation:ve_sweep 5s linear infinite;width:100%;'
-                    'transform-origin:left"></div></div>'
-                    '<style>@keyframes ve_sweep{0%{transform:scaleX(0)}'
-                    '100%{transform:scaleX(1)}}</style>'
-                )
-                st.markdown(progress_bar, unsafe_allow_html=True)
                 st.caption(
                     f"Showing {cycle_idx + 1} of {len(spotlight_df)} · "
-                    f"Select a name above to explore their voting record"
+                    f"Select a name above to explore their voting record · "
+                    f"Refresh to see another spotlight"
                 )
 
-                # Auto-advance every 5 seconds while no politician is selected
-                from streamlit_autorefresh import st_autorefresh
-                st_autorefresh(interval=5000, limit=0, key="ve_spotlight_refresh")
+        else:
+            mp_row = query(
+                "SELECT id, photo_url, party, electorate, state, chamber, "
+                "rebellions, votes_attended, votes_possible FROM politicians WHERE name=?",
+                (selected_mp,)
+            )
+            if not mp_row.empty:
+                r = mp_row.iloc[0]
+                mp_id = int(r["id"])
 
-            st.stop()
+                ph_col, info_col = st.columns([1, 3])
+                with ph_col:
+                    if r["photo_url"]:
+                        st.image(r["photo_url"], width=120)
+                with info_col:
+                    st.markdown(f"### {selected_mp}")
+                    chamber_label = "Senator" if r["chamber"] == "senate" else "MP"
+                    location = r["state"] or r["electorate"]
+                    st.caption(f"{chamber_label} — {r['party']} — {location}")
+                    attendance = (
+                        f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
+                        if r["votes_possible"] > 0 else "—"
+                    )
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("Attendance", attendance)
+                    m2.metric("Rebellions", int(r["rebellions"]))
+                    m3.metric("Days to election", f"{days_left:,}")
+                    m4.metric("Mandate elapsed", f"{mandate_pct}%")
 
-        mp_row = query(
-            "SELECT id, photo_url, party, electorate, state, chamber, "
-            "rebellions, votes_attended, votes_possible FROM politicians WHERE name=?",
-            (selected_mp,)
-        )
-        if not mp_row.empty:
-            r = mp_row.iloc[0]
-            mp_id = int(r["id"])
+                profile_expander(selected_mp, mp_id, photo_url=r.get("photo_url"))
 
-            ph_col, info_col = st.columns([1, 3])
-            with ph_col:
-                if r["photo_url"]:
-                    st.image(r["photo_url"], width=120)
-            with info_col:
-                st.markdown(f"### {selected_mp}")
-                chamber_label = "Senator" if r["chamber"] == "senate" else "MP"
-                location = r["state"] or r["electorate"]
-                st.caption(f"{chamber_label} — {r['party']} — {location}")
-                attendance = (
-                    f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
-                    if r["votes_possible"] > 0 else "—"
-                )
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("Attendance", attendance)
-                m2.metric("Rebellions", int(r["rebellions"]))
-                m3.metric("Days to election", f"{days_left:,}")
-                m4.metric("Mandate elapsed", f"{mandate_pct}%")
+                mp_votes = query("""
+                    SELECT d.id AS div_id, d.date, d.name AS division, d.house,
+                           d.number, d.aye_votes, d.no_votes, d.rebellions,
+                           d.summary, v.vote
+                    FROM votes v JOIN divisions d ON d.id = v.division_id
+                    WHERE v.politician_id = ? ORDER BY d.date DESC
+                """, (mp_id,))
 
-            profile_expander(selected_mp, mp_id, photo_url=r.get("photo_url"))
+                if mp_votes.empty:
+                    st.info("No vote records yet.")
+                else:
+                    aye_total = (mp_votes["vote"] == "aye").sum()
+                    no_total  = (mp_votes["vote"] == "no").sum()
+                    c1, c2 = st.columns(2)
+                    c1.metric("Aye", aye_total)
+                    c2.metric("No", no_total)
 
-            mp_votes = query("""
-                SELECT d.id AS div_id, d.date, d.name AS division, d.house,
-                       d.number, d.aye_votes, d.no_votes, d.rebellions,
-                       d.summary, v.vote
-                FROM votes v JOIN divisions d ON d.id = v.division_id
-                WHERE v.politician_id = ? ORDER BY d.date DESC
-            """, (mp_id,))
+                    ve_filter = st.radio(
+                        "Filter votes", ["All", "Aye only", "No only"],
+                        horizontal=True, key="ve_vote_filter",
+                    )
+                    filtered = mp_votes
+                    if ve_filter == "Aye only":
+                        filtered = mp_votes[mp_votes["vote"] == "aye"]
+                    elif ve_filter == "No only":
+                        filtered = mp_votes[mp_votes["vote"] == "no"]
 
-            if mp_votes.empty:
-                st.info("No vote records yet.")
-            else:
-                aye_total = (mp_votes["vote"] == "aye").sum()
-                no_total  = (mp_votes["vote"] == "no").sum()
-                c1, c2 = st.columns(2)
-                c1.metric("Aye", aye_total)
-                c2.metric("No", no_total)
+                    for idx, row in filtered.iterrows():
+                        vote_colour = "#27ae60" if row["vote"] == "aye" else "#e74c3c"
+                        vote_label = row["vote"].upper()
+                        div_title = (row["division"] or "Division")[:80]
 
-                ve_filter = st.radio(
-                    "Filter votes", ["All", "Aye only", "No only"],
-                    horizontal=True, key="ve_vote_filter",
-                )
-                filtered = mp_votes
-                if ve_filter == "Aye only":
-                    filtered = mp_votes[mp_votes["vote"] == "aye"]
-                elif ve_filter == "No only":
-                    filtered = mp_votes[mp_votes["vote"] == "no"]
-
-                for idx, row in filtered.iterrows():
-                    vote_colour = "#27ae60" if row["vote"] == "aye" else "#e74c3c"
-                    vote_label = row["vote"].upper()
-                    div_title = (row["division"] or "Division")[:80]
-
-                    with st.expander(
-                        f"{'🟢' if row['vote'] == 'aye' else '🔴'} "
-                        f"{row['date']} — {div_title}"
-                    ):
-                        # Header with vote badge
-                        st.markdown(
-                            f'<div style="margin-bottom:8px">'
-                            f'<span style="background:{vote_colour};color:#fff;'
-                            f'padding:3px 10px;border-radius:4px;font-size:12px;'
-                            f'font-weight:700">{selected_mp} voted {vote_label}</span>'
-                            f'</div>',
-                            unsafe_allow_html=True,
-                        )
-
-                        mc1, mc2, mc3 = st.columns(3)
-                        mc1.metric("Total Aye", int(row["aye_votes"]))
-                        mc2.metric("Total No", int(row["no_votes"]))
-                        mc3.metric("Rebellions", int(row["rebellions"]))
-
-                        # TVFY link
-                        try:
-                            tvfy_div_url = (
-                                f"https://theyvoteforyou.org.au/divisions"
-                                f"/{row['house']}/{row['date']}/{int(row['number'])}"
+                        with st.expander(
+                            f"{'🟢' if row['vote'] == 'aye' else '🔴'} "
+                            f"{row['date']} — {div_title}"
+                        ):
+                            st.markdown(
+                                f'<div style="margin-bottom:8px">'
+                                f'<span style="background:{vote_colour};color:#fff;'
+                                f'padding:3px 10px;border-radius:4px;font-size:12px;'
+                                f'font-weight:700">{selected_mp} voted {vote_label}</span>'
+                                f'</div>',
+                                unsafe_allow_html=True,
                             )
-                        except (ValueError, TypeError):
-                            tvfy_div_url = "https://theyvoteforyou.org.au/divisions"
-                        st.markdown(
-                            f'<a href="{tvfy_div_url}" target="_blank" style="'
-                            f'font-size:12px;color:#e94560">View on They Vote For You ↗</a>',
-                            unsafe_allow_html=True,
-                        )
 
-                        # Linked bills
-                        div_bills = query("""
-                            SELECT b.title, b.url FROM bills b
-                            JOIN division_bills db ON db.bill_id = b.id
-                            WHERE db.division_id = ?
-                        """, (int(row["div_id"]),))
-                        if not div_bills.empty:
-                            st.markdown("**Linked legislation:**")
-                            for _, bill in div_bills.iterrows():
-                                if bill["url"]:
-                                    st.markdown(f"- [{bill['title'] or 'Bill'}]({bill['url']})")
+                            mc1, mc2, mc3 = st.columns(3)
+                            mc1.metric("Total Aye", int(row["aye_votes"]))
+                            mc2.metric("Total No", int(row["no_votes"]))
+                            mc3.metric("Rebellions", int(row["rebellions"]))
+
+                            try:
+                                tvfy_div_url = (
+                                    f"https://theyvoteforyou.org.au/divisions"
+                                    f"/{row['house']}/{row['date']}/{int(row['number'])}"
+                                )
+                            except (ValueError, TypeError):
+                                tvfy_div_url = "https://theyvoteforyou.org.au/divisions"
+                            st.markdown(
+                                f'<a href="{tvfy_div_url}" target="_blank" style="'
+                                f'font-size:12px;color:#e94560">View on They Vote For You ↗</a>',
+                                unsafe_allow_html=True,
+                            )
+
+                            div_bills = query("""
+                                SELECT b.title, b.url FROM bills b
+                                JOIN division_bills db ON db.bill_id = b.id
+                                WHERE db.division_id = ?
+                            """, (int(row["div_id"]),))
+                            if not div_bills.empty:
+                                st.markdown("**Linked legislation:**")
+                                for _, bill in div_bills.iterrows():
+                                    if bill["url"]:
+                                        st.markdown(f"- [{bill['title'] or 'Bill'}]({bill['url']})")
+                                    else:
+                                        st.markdown(f"- {bill['title'] or 'Bill'}")
+
+                            summary_text = row.get("summary") or ""
+                            if summary_text:
+                                if len(summary_text) > 600:
+                                    short = summary_text[:600].rsplit(". ", 1)[0] + "."
+                                    st.markdown("**Division summary:**")
+                                    st.markdown(short)
+                                    with st.expander("Read full debate text"):
+                                        st.markdown(summary_text)
                                 else:
-                                    st.markdown(f"- {bill['title'] or 'Bill'}")
-
-                        # Summary / debate text
-                        summary_text = row.get("summary") or ""
-                        if summary_text:
-                            if len(summary_text) > 600:
-                                short = summary_text[:600].rsplit(". ", 1)[0] + "."
-                                st.markdown("**Division summary:**")
-                                st.markdown(short)
-                                with st.expander("Read full debate text"):
+                                    st.markdown("**Division summary:**")
                                     st.markdown(summary_text)
-                            else:
-                                st.markdown("**Division summary:**")
-                                st.markdown(summary_text)
 
-                        # Who else voted — party breakdown
-                        all_votes = query("""
-                            SELECT p.name, p.party, v2.vote
-                            FROM votes v2
-                            JOIN politicians p ON p.id = v2.politician_id
-                            WHERE v2.division_id = ?
-                            ORDER BY v2.vote, p.party, p.name
-                        """, (int(row["div_id"]),))
+                            all_votes = query("""
+                                SELECT p.name, p.party, v2.vote
+                                FROM votes v2
+                                JOIN politicians p ON p.id = v2.politician_id
+                                WHERE v2.division_id = ?
+                                ORDER BY v2.vote, p.party, p.name
+                            """, (int(row["div_id"]),))
 
-                        if not all_votes.empty:
-                            aye_df = all_votes[all_votes["vote"] == "aye"]
-                            no_df  = all_votes[all_votes["vote"] == "no"]
+                            if not all_votes.empty:
+                                aye_df = all_votes[all_votes["vote"] == "aye"]
+                                no_df  = all_votes[all_votes["vote"] == "no"]
 
-                            aye_col, no_col = st.columns(2)
-                            with aye_col:
-                                st.markdown(f"**Aye ({len(aye_df)})**")
-                                if not aye_df.empty:
-                                    by_party = aye_df.groupby("party")["name"].apply(list)
-                                    for party, names in sorted(by_party.items()):
-                                        st.markdown(
-                                            f'<div style="font-size:12px;margin:2px 0">'
-                                            f'<strong>{party}</strong> ({len(names)}): '
-                                            f'{", ".join(names[:10])}'
-                                            f'{"…" if len(names) > 10 else ""}'
-                                            f'</div>',
-                                            unsafe_allow_html=True,
-                                        )
-                            with no_col:
-                                st.markdown(f"**No ({len(no_df)})**")
-                                if not no_df.empty:
-                                    by_party = no_df.groupby("party")["name"].apply(list)
-                                    for party, names in sorted(by_party.items()):
-                                        st.markdown(
-                                            f'<div style="font-size:12px;margin:2px 0">'
-                                            f'<strong>{party}</strong> ({len(names)}): '
-                                            f'{", ".join(names[:10])}'
-                                            f'{"…" if len(names) > 10 else ""}'
-                                            f'</div>',
-                                            unsafe_allow_html=True,
-                                        )
+                                aye_col, no_col = st.columns(2)
+                                with aye_col:
+                                    st.markdown(f"**Aye ({len(aye_df)})**")
+                                    if not aye_df.empty:
+                                        by_party = aye_df.groupby("party")["name"].apply(list)
+                                        for party, names in sorted(by_party.items()):
+                                            st.markdown(
+                                                f'<div style="font-size:12px;margin:2px 0">'
+                                                f'<strong>{party}</strong> ({len(names)}): '
+                                                f'{", ".join(names[:10])}'
+                                                f'{"…" if len(names) > 10 else ""}'
+                                                f'</div>',
+                                                unsafe_allow_html=True,
+                                            )
+                                with no_col:
+                                    st.markdown(f"**No ({len(no_df)})**")
+                                    if not no_df.empty:
+                                        by_party = no_df.groupby("party")["name"].apply(list)
+                                        for party, names in sorted(by_party.items()):
+                                            st.markdown(
+                                                f'<div style="font-size:12px;margin:2px 0">'
+                                                f'<strong>{party}</strong> ({len(names)}): '
+                                                f'{", ".join(names[:10])}'
+                                                f'{"…" if len(names) > 10 else ""}'
+                                                f'</div>',
+                                                unsafe_allow_html=True,
+                                            )
 
 # ── Compare ───────────────────────────────────────────────────────────────────
 def build_compare_tab():
@@ -2349,7 +2330,7 @@ def build_compare_tab():
         })
     st.dataframe(
         pd.DataFrame(summary_rows).set_index("Name"),
-        use_container_width=True,
+        width="stretch",
     )
 
     # ── Side-by-side detail cards ──────────────────────────────────────────────
