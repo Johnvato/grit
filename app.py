@@ -768,90 +768,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Header (logo) ─────────────────────────────────────────────────────────────
+# ── Header (logo + tagline only) ──────────────────────────────────────────────
 _theme_logo(280)
-st.markdown(
-    '<div style="font-size:14px;color:#888;margin-top:-8px">'
-    'Cut through the <s>bull</s>parrotshit.</div>',
-    unsafe_allow_html=True,
-)
-
-# ── Feature cards ─────────────────────────────────────────────────────────────
-st.markdown(
-    '<div style="display:flex;flex-wrap:wrap;gap:24px;margin:8px 0 16px">'
-
-    '<div style="flex:1;min-width:220px;border-left:3px solid #e94560;'
-    'background:rgba(233,69,96,0.06);border-radius:0 8px 8px 0;padding:16px">'
-    '<div style="font-size:16px;font-weight:700;margin-bottom:6px">'
-    'Call out the <s>bull</s>parrotshit</div>'
-    '<div style="font-size:14px;font-weight:400;color:#ccc;line-height:1.5">'
-    'Pollygraph tracks what pollies say, how the media '
-    'spins it, and compares it all to how they actually vote on the stuff that impacts you.</div></div>'
-
-    '<div style="flex:1;min-width:220px;border-left:3px solid #27ae60;'
-    'background:rgba(39,174,96,0.06);border-radius:0 8px 8px 0;padding:16px">'
-    '<div style="font-size:16px;font-weight:700;margin-bottom:6px">'
-    'Clean up the <s>bull</s>parrotshit</div>'
-    '<div style="font-size:14px;font-weight:400;color:#ccc;line-height:1.5">'
-    'Pollies work for you, find your federal and state '
-    'representatives by entering your postcode, then write them a letter calling them out on their parrotshit. '
-    'It works and we have templates.</div></div>'
-
-    '</div>',
-    unsafe_allow_html=True,
-)
-
-# ── Value proposition ─────────────────────────────────────────────────────────
-st.markdown(
-    '<div style="font-size:16px;font-weight:500;line-height:1.6;color:#aaa;'
-    'margin:0 0 24px;padding:0 4px">'
-    'Pollygraph gives you the actual votes, the actual quotes, and the actual '
-    'track record, so you can walk into any conversation armed with facts, not vibes.</div>',
-    unsafe_allow_html=True,
-)
-
-# ── Mandate countdown ─────────────────────────────────────────────────────────
-days_left = days_until(NEXT_ELECTION)
-approx_label = "≈ " if ELECTION_DATE_APPROX else ""
-mandate_pct = round(100 * (1 - days_left / (NEXT_ELECTION - LAST_ELECTION).days), 1)
-
-if days_left <= 100:
-    countdown_label = f"{days_left} days"
-else:
-    years  = days_left // 365
-    months = (days_left % 365) // 30
-    parts  = []
-    if years:
-        parts.append(f"{years}yr{'s' if years != 1 else ''}")
-    if months:
-        parts.append(f"{months}mo")
-    countdown_label = " ".join(parts) or f"{days_left}d"
-
-col_a, col_b = st.columns([1, 2])
-with col_a:
-    st.markdown(
-        f'<div style="font-size:13px;color:#888;margin-bottom:2px">Last election</div>'
-        f'<div style="font-size:20px;font-weight:700">{LAST_ELECTION.strftime("%-d %b %Y")}</div>',
-        unsafe_allow_html=True,
-    )
-with col_b:
-    st.markdown(
-        f'<div style="font-size:13px;color:#888;margin-bottom:2px">{approx_label}Next federal election</div>'
-        f'<div style="font-size:20px;font-weight:700">{countdown_label} away</div>',
-        unsafe_allow_html=True,
-    )
-st.markdown(
-    f'<div style="font-size:13px;margin-bottom:4px">'
-    f'<strong>{mandate_pct}%</strong> of this term gone. Clock\'s ticking.</div>',
-    unsafe_allow_html=True,
-)
-st.progress(mandate_pct / 100)
-st.caption(
-    "Australian governments serve up to 3 years from election day. "
-    "At 100%, an election must be called."
-)
-
-st.divider()
+st.markdown("#### Cut through the ~~bull~~parrotshit.")
 
 # state_from_pc used by build_mp_tab for Senate filtering
 state_from_pc = None
@@ -959,9 +878,9 @@ if n_compare > 0:
             st.rerun()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-(tab_yourreps, tab_currentgov, tab_reps, tab_senate, tab_indep, tab_divs, tab_bills, tab_votes,
+(tab_currentgov, tab_yourreps, tab_reps, tab_senate, tab_indep, tab_divs, tab_bills, tab_votes,
  tab_compare, tab_promises, tab_revolving, tab_media, tab_ai_explainer) = st.tabs([
-    "Your Reps", "Current Gov", "House of Reps", "Senate", "Independents", "Divisions",
+    "Current Gov", "Your Reps", "House of Reps", "Senate", "Independents", "Divisions",
     "False Divisions", "Vote Explorer", "Compare", "Promises", "Revolving Door", "Media",
     "How AI Works",
 ])
@@ -1372,6 +1291,77 @@ your roads, and your planning approvals are all state or local responsibilities.
 
 # ── Current Government ─────────────────────────────────────────────────────────
 def build_current_gov_tab():
+    # ── Feature cards ─────────────────────────────────────────────────────────
+    card_left, card_right = st.columns(2, gap="large")
+    with card_left:
+        with st.container(border=True):
+            st.subheader("Call out the ~~bull~~parrotshit")
+            st.write(
+                "Pollygraph tracks what pollies say, how the media spins it, "
+                "and compares it all to how they actually vote on the stuff "
+                "that impacts you."
+            )
+    with card_right:
+        with st.container(border=True):
+            st.subheader("Clean up the ~~bull~~parrotshit")
+            st.write(
+                "Pollies work for you, find your federal and state "
+                "representatives by entering your postcode, then write them a letter "
+                "calling them out on their parrotshit. It works and we have templates."
+            )
+
+    # ── Value proposition ─────────────────────────────────────────────────────
+    st.markdown(
+        "*Pollygraph gives you the actual votes, the actual quotes, and the actual "
+        "track record, so you can walk into any conversation armed with facts, not vibes.*"
+    )
+
+    st.divider()
+
+    # ── Mandate countdown ─────────────────────────────────────────────────────
+    days_left = days_until(NEXT_ELECTION)
+    approx_label = "≈ " if ELECTION_DATE_APPROX else ""
+    mandate_pct = round(100 * (1 - days_left / (NEXT_ELECTION - LAST_ELECTION).days), 1)
+
+    if days_left <= 100:
+        countdown_label = f"{days_left} days"
+    else:
+        years  = days_left // 365
+        months = (days_left % 365) // 30
+        parts  = []
+        if years:
+            parts.append(f"{years}yr{'s' if years != 1 else ''}")
+        if months:
+            parts.append(f"{months}mo")
+        countdown_label = " ".join(parts) or f"{days_left}d"
+
+    col_a, col_b = st.columns([1, 2])
+    with col_a:
+        st.markdown(
+            f'<div style="font-size:13px;color:#888;margin-bottom:2px">Last election</div>'
+            f'<div style="font-size:20px;font-weight:700">{LAST_ELECTION.strftime("%-d %b %Y")}</div>',
+            unsafe_allow_html=True,
+        )
+    with col_b:
+        st.markdown(
+            f'<div style="font-size:13px;color:#888;margin-bottom:2px">{approx_label}Next federal election</div>'
+            f'<div style="font-size:20px;font-weight:700">{countdown_label} away</div>',
+            unsafe_allow_html=True,
+        )
+    st.markdown(
+        f'<div style="font-size:13px;margin-bottom:4px">'
+        f'<strong>{mandate_pct}%</strong> of this term gone. Clock\'s ticking.</div>',
+        unsafe_allow_html=True,
+    )
+    st.progress(mandate_pct / 100)
+    st.caption(
+        "Australian governments serve up to 3 years from election day. "
+        "At 100%, an election must be called."
+    )
+
+    st.divider()
+
+    # ── Government overview ───────────────────────────────────────────────────
     st.subheader("The Current Government")
     st.caption(
         "A snapshot of who governs Australia right now — how they got here, what they promised, "
