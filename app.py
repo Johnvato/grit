@@ -1632,9 +1632,9 @@ after losing government in 2022. Key factors in their result:
             ),
             "colour": "#d4ac0d",
             "sources": [
-                ("The Australia Institute — mining royalties", "https://australiainstitute.org.au/report/resource-rents/"),
-                ("ABC News — how much do miners pay?", "https://www.abc.net.au/news/2023-02-09/mining-companies-tax-royalties-explained/101950638"),
-                ("Grattan Institute — resource taxation", "https://grattan.edu.au/report/digging-into-the-mining-tax/"),
+                ("Australia Institute — students pay 4x more than gas companies", "https://australiainstitute.org.au/post/in-2023-24-australians-paid-more-than-4-times-on-hecs-help-than-gas-companies-did-on-prrt/"),
+                ("ABC News — Qld coal royalties under spotlight", "https://www.abc.net.au/news/2025-09-28/qld-coal-mine-royalties-regime-questioned-after-job-cuts/105818488"),
+                ("Grattan Institute — mining fuel tax credits", "https://grattan.edu.au/news/minerals-council-is-wrong-about-fuel-tax-credits/"),
             ],
         },
         {
