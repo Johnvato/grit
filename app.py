@@ -752,7 +752,11 @@ st.markdown("""
 
 # ── Header (logo) ─────────────────────────────────────────────────────────────
 st.image("assets/logo_dark_bg.png", width=280)
-st.caption("Cut through the bullparrotshit.")
+st.markdown(
+    '<div style="font-size:14px;color:#888;margin-top:-8px">'
+    'Cut through the <s>bull</s>parrotshit.</div>',
+    unsafe_allow_html=True,
+)
 
 # ── Value proposition ─────────────────────────────────────────────────────────
 st.markdown(
@@ -762,12 +766,12 @@ st.markdown(
     '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px">'
 
     '<div style="flex:1;min-width:200px;border-left:3px solid #e94560;padding:6px 12px">'
-    '<div style="font-size:13px;font-weight:600">Call out the bullparrotshit</div>'
+    '<div style="font-size:13px;font-weight:600">Call out the <s>bull</s>parrotshit</div>'
     '<div style="font-size:12px;color:#888">Pollygraph tracks what pollies say, how the media '
     'spins it, and compares it all to how they actually vote on the stuff that impacts you.</div></div>'
 
     '<div style="flex:1;min-width:200px;border-left:3px solid #27ae60;padding:6px 12px">'
-    '<div style="font-size:13px;font-weight:600">Clean up the bullparrotshit</div>'
+    '<div style="font-size:13px;font-weight:600">Clean up the <s>bull</s>parrotshit</div>'
     '<div style="font-size:12px;color:#888">Enter your postcode to find your federal and state '
     'representatives, then write them a letter calling them out on their parrotshit. '
     'It actually works. We have templates.</div></div>'
