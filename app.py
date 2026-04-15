@@ -889,8 +889,8 @@ if n_compare > 0:
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 (tab_currentgov, tab_yourreps, tab_reps, tab_senate, tab_indep, tab_divs, tab_bills, tab_votes,
  tab_compare, tab_promises, tab_revolving, tab_media, tab_ai_explainer) = st.tabs([
-    "Current Gov", "Your Reps", "House of Reps", "Senate", "Independents", "Divisions",
-    "False Divisions", "Vote Explorer", "Compare", "Promises", "Revolving Door", "Media",
+    "Current Gov", "Your Reps", "House of Reps", "Senate", "Independents", "Votes",
+    "Dodgy Deals", "Look Up", "Compare", "Promises", "Revolving Door", "Media",
     "How AI Works",
 ])
 
@@ -998,12 +998,11 @@ def build_mp_tab(chamber: str):
 # ── House of Reps ─────────────────────────────────────────────────────────────
 # ── Your Reps ──────────────────────────────────────────────────────────────────
 with tab_yourreps:
-    st.subheader("Your Representatives")
+    st.subheader("Your Reps")
     st.caption(
-        "Enter your postcode to find every politician who represents you — "
-        "from your local federal MP, to your state senators, to a guide on finding "
-        "your state and local council representatives. Australia has three levels of "
-        "government, each with its own elected representatives and responsibilities."
+        "Enter your postcode to find every politician who represents you, "
+        "from your local MP to your state senators. "
+        "These are the people you can actually write to."
     )
 
     lookup_method = st.radio(
@@ -1331,8 +1330,8 @@ def build_current_gov_tab():
 
         '<div style="font-size:14px;font-style:italic;line-height:1.6;opacity:0.6;'
         'margin-bottom:8px">'
-        'Pollygraph gives you Aussie politician\'s actual votes, quotes, and conflicts of interest '
-        'so you can have factual conversations and make accurately informed decisions.</div>',
+        'Pollygraph gives you the actual votes, the actual quotes, and the actual track record, '
+        'so you can walk into any conversation armed with facts, not vibes.</div>',
         unsafe_allow_html=True,
     )
 
@@ -1382,10 +1381,10 @@ def build_current_gov_tab():
     st.divider()
 
     # ── Current government mandates ───────────────────────────────────────────
-    st.markdown("#### Current government mandates")
+    st.markdown("#### Are they keeping their promises?")
     st.caption(
-        "How is the government tracking against what it promised? "
-        "Full detail for all parties is in the Promises tab."
+        "What the government promised versus what they've actually done. "
+        "Full detail for all parties in the Promises tab."
     )
 
     if not _promise_summary.empty:
@@ -1651,11 +1650,11 @@ with tab_currentgov:
 
 # ── House of Reps ─────────────────────────────────────────────────────────────
 with tab_reps:
-    st.subheader("House of Representatives")
+    st.subheader("House of Reps")
     st.caption(
-        "151 seats. One per electorate. The party that holds the majority forms government. "
-        "We track how every member votes, how often they show up, and how often they fall in line. "
-        "Pick a name, or search your postcode."
+        "151 MPs. The party with the most seats runs the country. "
+        "We track how every one of them votes, how often they show up, "
+        "and how often they break ranks. Search by name or postcode."
     )
     search = st.text_input(
         "Search by name, electorate or postcode", key="reps_search",
@@ -1729,10 +1728,9 @@ with tab_reps:
 with tab_senate:
     st.subheader("Senate")
     st.caption(
-        "The Senate is the upper house, with 76 senators representing states and territories. "
-        "It acts as a house of review — scrutinising and amending legislation passed by the House of Reps. "
-        "Minor parties and independents often hold the balance of power here, making Senate voting records "
-        "particularly revealing of political alliances and deal-making."
+        "76 senators. They review and vote on every law the House of Reps passes. "
+        "Minor parties and independents often hold the balance of power here, "
+        "which means this is where the real deals get done."
     )
     build_mp_tab("senate")
 
@@ -1751,9 +1749,9 @@ with tab_indep:
     st.subheader("Independents & Crossbench")
 
     st.caption(
-        "These two terms overlap — and are often confused. The simplest way to think "
-        "about it: one describes *who you are*, the other describes *where you sit* "
-        "and what role you play in Parliament."
+        "Politicians who don't answer to a party boss. Independents vote on their own judgement. "
+        "The crossbench is where they sit, and when the government needs extra votes, "
+        "these are the people they have to negotiate with."
     )
 
     col_ind, col_cross = st.columns(2)
@@ -1921,13 +1919,11 @@ sidelined.
 
 # ── Divisions ─────────────────────────────────────────────────────────────────
 with tab_divs:
-    st.subheader("Divisions")
+    st.subheader("How they voted")
     st.caption(
-        "A 'division' is the moment of truth in Parliament — members stand to be counted for "
-        "or against. This is where rhetoric meets reality. Every promise, every talking point, "
-        "every media appearance is measured against how a politician actually votes when it counts. "
-        "Select a division below to see who voted which way, then cross-reference with the "
-        "False Divisions tab to examine whether the legislation deserved the vote it received."
+        "When Parliament votes on a law, every MP has to stand up and be counted. "
+        "They call it a 'division'. Pick one below to see who voted yes, "
+        "who voted no, and who didn't bother showing up."
     )
 
     house_filter = st.radio(
@@ -2014,12 +2010,10 @@ with tab_divs:
 
 # ── Vote Explorer ─────────────────────────────────────────────────────────────
 with tab_votes:
-    st.subheader("How did each politician vote?")
+    st.subheader("Look up any pollie")
     st.caption(
-        "Look up any MP or senator to see their complete voting record across all synced divisions. "
-        "This view makes it easy to see whether a politician's votes match their public statements — "
-        "the core of what Pollygraph tracks. Filter by aye/no votes to spot patterns, rebellions, "
-        "and absences."
+        "Pick a politician. See every vote they've cast. "
+        "Check whether what they say matches what they do."
     )
 
     mp_names = query("SELECT name FROM politicians ORDER BY name")["name"].tolist()
@@ -2262,10 +2256,9 @@ def build_compare_tab():
     import json as _json
 
     st.caption(
-        "Compare politicians side by side — like a product comparison table for democracy. "
-        "Select any combination of MPs and senators using the Compare checkbox on their cards, "
-        "then view attendance, rebellions, AI sentiment scores, background, and latest news "
-        "in parallel columns to spot differences at a glance."
+        "Pick two or more politicians from any tab using the Compare checkbox, "
+        "then come here to see them side by side. "
+        "Attendance, voting record, scandals, the lot."
     )
 
     cids = list(st.session_state.get("compare_ids", []))
@@ -2446,10 +2439,8 @@ with tab_compare:
 # ── Promises tab ───────────────────────────────────────────────────────────────
 def build_promises_tab():
     st.caption(
-        "Election promises are the commitments parties make to win your vote. "
-        "This tracker holds them accountable — showing which promises the government has delivered, "
-        "which are in progress, and which remain unfulfilled. Opposition platforms are included "
-        "to show what was offered as an alternative. Tap any promise for evidence and independent scrutiny."
+        "What they promised before the election versus what they've actually done since. "
+        "Tap any promise to see the evidence."
     )
 
     all_promises = query("SELECT * FROM promises ORDER BY party, category, promise")
@@ -2537,14 +2528,11 @@ IMPACT_COLOURS = {
 }
 
 def build_fine_print_tab():
-    st.subheader("False Divisions")
+    st.subheader("Dodgy deals")
     st.caption(
-        "Some legislation passes Parliament with bipartisan support and minimal debate — "
-        "yet contains provisions that quietly serve narrow interests. These are the false "
-        "divisions: votes that look like governance but may be the product of sustained "
-        "lobbying, industry access, and legislative drafting shaped outside the public eye. "
-        "Each entry below breaks down what the bill claims to do versus what it actually "
-        "does, who benefits, who loses, and what independent analysis has revealed."
+        "Laws that got passed because the right people made the right donations. "
+        "We break down what each bill says it does versus what it actually does, "
+        "who lobbied for it, and who got screwed."
     )
 
     st.markdown("""
@@ -2708,14 +2696,11 @@ SECTOR_COLOURS = {
 }
 
 def build_revolving_door_tab():
-    st.subheader("The Revolving Door")
+    st.subheader("Revolving Door")
     st.caption(
-        "When politicians leave office and immediately take jobs in industries they regulated, "
-        "it raises a fundamental question: were their decisions in office influenced by the "
-        "prospect of future employment? Australia has no mandatory cooling-off period for "
-        "federal ministers — unlike the UK (2 years), Canada (2 years), or the US (1–2 years). "
-        "This tab documents cases where the post-politics career path suggests the door between "
-        "government and industry swings both ways."
+        "Politicians who left office and walked straight into jobs in the industries "
+        "they used to regulate. Australia has no mandatory cooling-off period. "
+        "Most other democracies do."
     )
 
     cases = query("SELECT * FROM revolving_door ORDER BY left_office_year DESC, name")
@@ -2869,12 +2854,10 @@ def _leaning_colour(leaning_text: str) -> str:
 
 
 def build_media_tab():
-    st.subheader("Media Sources")
+    st.subheader("Media")
     st.caption(
-        "Not all news sources are created equal. This tab shows which media outlets appear "
-        "most frequently in Pollygraph's data, who owns them, how they're funded, and where "
-        "their political interests lie. Understanding the source is essential to evaluating "
-        "the information it produces."
+        "Who owns the news you read, how they're funded, and where their political interests lie. "
+        "Three companies control most of what Australians see and hear."
     )
 
     # ── Trust methodology ──────────────────────────────────────────────────────
@@ -3068,12 +3051,12 @@ with tab_media:
 def build_ai_explainer_tab():
     import json as _json_ex
 
-    st.subheader("How the AI Analysis Works")
+    st.subheader("How the AI works")
 
     st.caption(
-        "Pollygraph uses artificial intelligence to read recent news about every politician in the Australian "
-        "parliament and produce a structured, evidence-based assessment. This page explains exactly what "
-        "the AI does, what each score means, and how to read the results you see throughout the site."
+        "Every night, an AI reads the latest news about every politician in parliament "
+        "and scores them on scandal and integrity. Here's exactly how it works, "
+        "what the scores mean, and where it can get things wrong."
     )
 
     st.divider()
