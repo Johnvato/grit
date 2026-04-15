@@ -1,0 +1,30 @@
+name: Link Health Check
+
+on:
+  schedule:
+    - cron: '0 1,5,9,13,17,21 * * *'  # Every 4 hours (UTC)
+  workflow_dispatch:                    # Manual trigger from GitHub UI
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Check all links and fix broken ones
+        run: python check_links.py || true
+
+      - name: Commit any link fixes
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'bot@noreply.github.com'
+          git add app.py
+          git diff --cached --quiet && echo "All links healthy — nothing to commit." && exit 0
+          git commit -m "Auto-fix broken links $(date -u +%Y-%m-%dT%H:%M)"
+          git push
