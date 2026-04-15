@@ -2063,11 +2063,13 @@ with tab_votes:
                         f"{100 * sp['votes_attended'] / sp['votes_possible']:.0f}%"
                         if sp["votes_possible"] > 0 else "—"
                     )
+                    _dl = days_until(NEXT_ELECTION)
+                    _mp = round(100 * (1 - _dl / (NEXT_ELECTION - LAST_ELECTION).days), 1)
                     m1, m2, m3, m4 = st.columns(4)
                     m1.metric("Attendance", attendance)
                     m2.metric("Rebellions", int(sp["rebellions"]))
-                    m3.metric("Days to election", f"{days_left:,}")
-                    m4.metric("Mandate elapsed", f"{mandate_pct}%")
+                    m3.metric("Days to election", f"{_dl:,}")
+                    m4.metric("Mandate elapsed", f"{_mp}%")
 
                 st.markdown(
                     f'<div style="background:#1a1a2e;border-radius:8px;padding:12px;'
@@ -2108,11 +2110,13 @@ with tab_votes:
                         f"{100 * r['votes_attended'] / r['votes_possible']:.0f}%"
                         if r["votes_possible"] > 0 else "—"
                     )
+                    _dl = days_until(NEXT_ELECTION)
+                    _mp = round(100 * (1 - _dl / (NEXT_ELECTION - LAST_ELECTION).days), 1)
                     m1, m2, m3, m4 = st.columns(4)
                     m1.metric("Attendance", attendance)
                     m2.metric("Rebellions", int(r["rebellions"]))
-                    m3.metric("Days to election", f"{days_left:,}")
-                    m4.metric("Mandate elapsed", f"{mandate_pct}%")
+                    m3.metric("Days to election", f"{_dl:,}")
+                    m4.metric("Mandate elapsed", f"{_mp}%")
 
                 profile_expander(selected_mp, mp_id, photo_url=r.get("photo_url"))
 
