@@ -6,56 +6,16 @@ import folium
 from streamlit_folium import st_folium
 import requests as _req_geo
 import math as _math_geo
-import base64 as _b64
 
 st.set_page_config(page_title="Pollygraph", layout="wide", page_icon="assets/parrot_icon.png")
 
 # ── Theme-aware logo helper ───────────────────────────────────────────────────
-@st.cache_data
-def _logo_html(width: int = 280) -> str:
-    with open("assets/logo_dark_bg.png", "rb") as f:
-        dark_b64 = _b64.b64encode(f.read()).decode()
-    with open("assets/logo_light_bg.png", "rb") as f:
-        light_b64 = _b64.b64encode(f.read()).decode()
-    return (
-        f'<img class="pg-logo-dark" src="data:image/png;base64,{dark_b64}" width="{width}">'
-        f'<img class="pg-logo-light" src="data:image/png;base64,{light_b64}" width="{width}">'
-    )
-
-_LOGO_THEME_CSS = """<style>
-.pg-logo-dark  { display:block }
-.pg-logo-light { display:none  }
-@media (prefers-color-scheme: light) {
-    .pg-logo-dark  { display:none  !important }
-    .pg-logo-light { display:block !important }
-}
-</style>
-<script>
-// Streamlit may override OS preference via its settings menu.
-// Poll the computed background to keep the logo in sync.
-(function() {
-    function updateLogos() {
-        var app = document.querySelector('[data-testid="stAppViewContainer"]');
-        if (!app) return;
-        var bg = getComputedStyle(app).backgroundColor;
-        var m = bg.match(/\\d+/g);
-        if (!m) return;
-        var bright = (parseInt(m[0])*299 + parseInt(m[1])*587 + parseInt(m[2])*114) / 1000;
-        var isLight = bright > 128;
-        document.querySelectorAll('.pg-logo-dark').forEach(
-            function(el){ el.style.display = isLight ? 'none' : 'block' });
-        document.querySelectorAll('.pg-logo-light').forEach(
-            function(el){ el.style.display = isLight ? 'block' : 'none' });
-    }
-    var obs = new MutationObserver(updateLogos);
-    var target = document.querySelector('[data-testid="stAppViewContainer"]');
-    if (target) obs.observe(target, {attributes:true, attributeFilter:['style']});
-    updateLogos();
-    setTimeout(updateLogos, 500);
-    setTimeout(updateLogos, 2000);
-})();
-</script>
-"""
+def _logo_path():
+    try:
+        is_light = st.context.theme.type == "light"
+    except Exception:
+        is_light = False
+    return "assets/logo_light_bg.png" if is_light else "assets/logo_dark_bg.png"
 
 # ── Password gate ─────────────────────────────────────────────────────────────
 def _check_password():
@@ -64,8 +24,7 @@ def _check_password():
         return True
     if st.session_state.get("authenticated"):
         return True
-    st.markdown(_LOGO_THEME_CSS, unsafe_allow_html=True)
-    st.markdown(_logo_html(260), unsafe_allow_html=True)
+    st.image(_logo_path(), width=260)
     pwd = st.text_input("Enter password to continue", type="password", key="_pw")
     if pwd and pwd == correct:
         st.session_state.authenticated = True
@@ -87,8 +46,6 @@ div[data-baseweb="textarea"] > div {
 }
 </style>
 """, unsafe_allow_html=True)
-
-st.markdown(_LOGO_THEME_CSS, unsafe_allow_html=True)
 
 DB = "grit_cache.db"
 
@@ -802,7 +759,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Header (logo) ─────────────────────────────────────────────────────────────
-st.markdown(_logo_html(280), unsafe_allow_html=True)
+st.image(_logo_path(), width=280)
 st.markdown(
     '<div style="font-size:14px;color:#888;margin-top:-8px">'
     'Cut through the <s>bull</s>parrotshit.</div>',
