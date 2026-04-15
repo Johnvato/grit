@@ -1421,41 +1421,6 @@ def build_current_gov_tab():
     st.divider()
 
     # ── Election result summary ───────────────────────────────────────────────
-    st.markdown("#### 2025 Federal Election Result")
-
-    st.markdown(
-        '<div style="display:flex;align-items:center;gap:0;margin:18px 0 22px 0;justify-content:center">'
-        '  <div style="text-align:center;padding:14px 22px;border-radius:10px;'
-        '  background:linear-gradient(135deg,#1565c0 60%,#1976d2);color:#fff;min-width:170px">'
-        '    <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.85">2022</div>'
-        '    <div style="font-size:20px;font-weight:800;margin:2px 0">Coalition</div>'
-        '    <div style="font-size:12px;opacity:.8">Scott Morrison</div>'
-        '  </div>'
-        '  <div style="display:flex;flex-direction:column;align-items:center;padding:0 6px">'
-        '    <div style="font-size:28px;line-height:1">&#10132;</div>'
-        '    <div style="font-size:10px;color:#888;white-space:nowrap;margin-top:2px">Change of govt</div>'
-        '  </div>'
-        '  <div style="text-align:center;padding:14px 22px;border-radius:10px;'
-        '  background:linear-gradient(135deg,#c62828 60%,#e53935);color:#fff;min-width:170px">'
-        '    <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.85">2022 &#8594;</div>'
-        '    <div style="font-size:20px;font-weight:800;margin:2px 0">Labor</div>'
-        '    <div style="font-size:12px;opacity:.8">Anthony Albanese</div>'
-        '  </div>'
-        '  <div style="display:flex;flex-direction:column;align-items:center;padding:0 6px">'
-        '    <div style="font-size:28px;line-height:1">&#10132;</div>'
-        '    <div style="font-size:10px;color:#888;white-space:nowrap;margin-top:2px">Re-elected</div>'
-        '  </div>'
-        '  <div style="text-align:center;padding:14px 22px;border-radius:10px;'
-        '  background:linear-gradient(135deg,#c62828 60%,#e53935);color:#fff;min-width:170px;'
-        '  box-shadow:0 0 0 3px rgba(229,57,53,.35)">'
-        '    <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.85">2025</div>'
-        '    <div style="font-size:20px;font-weight:800;margin:2px 0">Labor</div>'
-        '    <div style="font-size:12px;opacity:.8">Anthony Albanese</div>'
-        '  </div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
     _em = query("""
         SELECT winning_party,
                COUNT(*) AS seats,
@@ -1476,40 +1441,61 @@ def build_current_gov_tab():
     total_seats = 151
     alp_seats = int(_em[_em["winning_party"] == "ALP"]["seats"].sum()) if not _em.empty else 0
     coalition_seats = int(_em[_em["winning_party"].isin(["LP", "LNP", "NP"])]["seats"].sum()) if not _em.empty else 0
+    others_seats = total_seats - alp_seats - coalition_seats
     majority_line = (total_seats // 2) + 1
-
-    col_r1, col_r2, col_r3, col_r4 = st.columns(4)
-    col_r1.metric("ALP seats", f"{alp_seats} / {total_seats}",
-                  help="Seats won by the Australian Labor Party in the House of Representatives")
-    col_r2.metric("Coalition seats", str(coalition_seats),
-                  help="Combined Liberal, Liberal National, and National Party seats")
-    col_r3.metric("Majority needed", str(majority_line),
-                  help="A party needs 76 of 151 seats to form government in their own right")
-    col_r4.metric("ALP majority", f"+{alp_seats - majority_line}" if alp_seats >= majority_line else str(alp_seats - majority_line),
-                  help="How many seats above or below the 76-seat majority threshold")
+    alp_majority = alp_seats - majority_line
+    alp_pct = round(100 * alp_seats / total_seats)
+    coal_pct = round(100 * coalition_seats / total_seats)
 
     st.markdown(
-        '<div style="margin:12px 0">'
-        '<div style="display:flex;height:20px;border-radius:6px;overflow:hidden;position:relative">'
-        f'<div style="width:{round(100*alp_seats/total_seats)}%;background:#e53935" '
-        f'title="ALP: {alp_seats} seats"></div>'
-        f'<div style="width:{round(100*coalition_seats/total_seats)}%;background:#1565c0" '
-        f'title="Coalition: {coalition_seats} seats"></div>'
-        f'<div style="flex:1;background:#8e24aa" '
-        f'title="Others: {total_seats - alp_seats - coalition_seats} seats"></div>'
-        '</div>'
-        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-top:4px">'
-        f'<span style="color:#e53935">ALP {alp_seats}</span>'
-        f'<span style="color:#1565c0">Coalition {coalition_seats}</span>'
-        f'<span style="color:#8e24aa">Others {total_seats - alp_seats - coalition_seats}</span>'
-        '</div></div>',
-        unsafe_allow_html=True,
-    )
+        '<div style="font-family:\'Courier New\',Consolas,monospace;font-size:13px;'
+        'background:#0a0a0a;border:1px solid #222;border-radius:6px;padding:16px;'
+        'line-height:1.8;overflow-x:auto">'
 
-    st.caption(
-        f"The ALP won {alp_seats} of {total_seats} House of Representatives seats on 3 May 2025, "
-        f"{'securing' if alp_seats >= majority_line else 'falling short of'} a majority "
-        f"({majority_line} seats needed). Anthony Albanese was returned as Prime Minister."
+        '<div style="color:#555;margin-bottom:8px">── 2025 FEDERAL ELECTION ──────────────────</div>'
+
+        '<div style="display:flex;flex-wrap:wrap;gap:0 24px">'
+        '<div style="min-width:200px">'
+        '<span style="color:#888">GOVERNMENT</span>  '
+        '<span style="color:#e53935;font-weight:700">ALP</span> '
+        '<span style="color:#666">(Albanese, re-elected)</span><br>'
+        '<span style="color:#888">OPPOSITION</span>  '
+        '<span style="color:#1565c0;font-weight:700">Coalition</span> '
+        '<span style="color:#666">(Ley)</span>'
+        '</div>'
+        '</div>'
+
+        '<div style="color:#333;margin:10px 0 6px">─────────────────────────────────────────</div>'
+
+        '<div style="display:flex;flex-wrap:wrap;gap:0 32px">'
+        f'<div><span style="color:#888">ALP</span> '
+        f'<span style="color:#e53935;font-weight:700">{alp_seats}</span>'
+        f'<span style="color:#555">/{total_seats}</span></div>'
+        f'<div><span style="color:#888">COAL</span> '
+        f'<span style="color:#1565c0;font-weight:700">{coalition_seats}</span></div>'
+        f'<div><span style="color:#888">OTHER</span> '
+        f'<span style="color:#8e24aa;font-weight:700">{others_seats}</span></div>'
+        f'<div><span style="color:#888">MAJORITY</span> '
+        f'<span style="color:#555">{majority_line}</span></div>'
+        f'<div><span style="color:#888">ALP +/-</span> '
+        f'<span style="color:{"#27ae60" if alp_majority >= 0 else "#e53935"};font-weight:700">'
+        f'{"+" if alp_majority >= 0 else ""}{alp_majority}</span></div>'
+        '</div>'
+
+        '<div style="color:#333;margin:10px 0 6px">─────────────────────────────────────────</div>'
+
+        '<div style="display:flex;height:10px;border-radius:3px;overflow:hidden;margin-bottom:6px">'
+        f'<div style="width:{alp_pct}%;background:#e53935"></div>'
+        f'<div style="width:{coal_pct}%;background:#1565c0"></div>'
+        f'<div style="flex:1;background:#8e24aa"></div>'
+        '</div>'
+
+        f'<div style="color:#555;font-size:11px">'
+        f'ALP {alp_seats} · Coalition {coalition_seats} · Others {others_seats} · '
+        f'3 May 2025 · Albanese returned as PM</div>'
+
+        '</div>',
+        unsafe_allow_html=True,
     )
 
     st.divider()
