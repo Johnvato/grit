@@ -9,6 +9,24 @@ import math as _math_geo
 
 st.set_page_config(page_title="Pollygraph", layout="wide", page_icon="assets/parrot_icon.png")
 
+# ── Password gate ─────────────────────────────────────────────────────────────
+def _check_password():
+    correct = st.secrets.get("password", "")
+    if not correct:
+        return True
+    if st.session_state.get("authenticated"):
+        return True
+    st.image("assets/logo_dark_bg.png", width=260)
+    pwd = st.text_input("Enter password to continue", type="password", key="_pw")
+    if pwd and pwd == correct:
+        st.session_state.authenticated = True
+        st.rerun()
+    elif pwd:
+        st.error("Incorrect password.")
+    st.stop()
+
+_check_password()
+
 st.markdown("""
 <style>
 /* Faint border on all Streamlit text inputs, selects, and textareas for light-mode contrast */
