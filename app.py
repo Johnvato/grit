@@ -752,7 +752,7 @@ st.markdown("""
 
 # ── Header (logo) ─────────────────────────────────────────────────────────────
 st.image("assets/logo_dark_bg.png", width=280)
-st.caption("Reality vs rhetoric in Australian politics.")
+st.caption("Cut through the parrotshit.")
 
 # ── Value proposition ─────────────────────────────────────────────────────────
 st.markdown(
@@ -760,25 +760,22 @@ st.markdown(
     'border:1px solid rgba(128,128,128,0.15);border-radius:10px;padding:20px 24px;margin:8px 0 20px">'
 
     '<div style="font-size:16px;font-weight:600;line-height:1.5;margin-bottom:14px">'
-    'Pollygraph aggregates official parliamentary voting records and news coverage '
-    'to provide a detailed snapshot to cut through the noise.</div>'
+    'Everyone\'s got an opinion on politics. Most of them are recycled headlines. '
+    'Pollygraph gives you the actual votes, the actual quotes, and the actual track record, '
+    'so you can walk into any conversation armed with facts, not vibes.</div>'
 
     '<div style="display:flex;flex-wrap:wrap;gap:12px">'
 
+    '<div style="flex:1;min-width:200px;border-left:3px solid #e94560;padding:6px 12px">'
+    '<div style="font-size:13px;font-weight:600">Track the bullshit</div>'
+    '<div style="font-size:12px;color:#888">Pollygraph tracks what pollies say, how the media '
+    'spins it, and compares it all to how they actually vote on the stuff that impacts you.</div></div>'
+
     '<div style="flex:1;min-width:200px;border-left:3px solid #27ae60;padding:6px 12px">'
-    '<div style="font-size:13px;font-weight:600">Find your representatives</div>'
-    '<div style="font-size:12px;color:#888">Enter your postcode to see every politician '
-    'who represents you — federal, state, and local.</div></div>'
-
-    '<div style="flex:1;min-width:200px;border-left:3px solid #3498db;padding:6px 12px">'
-    '<div style="font-size:13px;font-weight:600">See how they actually vote</div>'
-    '<div style="font-size:12px;color:#888">Every parliamentary vote is recorded. '
-    'We show you the pattern — who follows the party line, who rebels, who doesn\'t show up.</div></div>'
-
-    '<div style="flex:1;min-width:200px;border-left:3px solid #e67e22;padding:6px 12px">'
-    '<div style="font-size:13px;font-weight:600">Spot the gap between rhetoric and reality</div>'
-    '<div style="font-size:12px;color:#888">AI analysis cross-references what politicians say '
-    'in the media against how they vote and what they promised before the election.</div></div>'
+    '<div style="font-size:13px;font-weight:600">They work for you</div>'
+    '<div style="font-size:12px;color:#888">Enter your postcode to find your federal and state '
+    'representatives, then write them a letter calling them out on their parrotshit. '
+    'It actually works. We have templates.</div></div>'
 
     '</div>'
     '</div>',
@@ -817,13 +814,13 @@ with col_b:
     )
 st.markdown(
     f'<div style="font-size:13px;margin-bottom:4px">'
-    f'Mandate elapsed: <strong>{mandate_pct}%</strong></div>',
+    f'<strong>{mandate_pct}%</strong> of this term gone. Clock\'s ticking.</div>',
     unsafe_allow_html=True,
 )
 st.progress(mandate_pct / 100)
 st.caption(
     "Australian governments serve up to 3 years from election day. "
-    "This bar shows how much of the current term has passed — at 100% an election must be called."
+    "At 100%, an election must be called."
 )
 
 st.divider()
@@ -1661,10 +1658,9 @@ with tab_currentgov:
 with tab_reps:
     st.subheader("House of Representatives")
     st.caption(
-        "The House of Representatives is the lower house of the Australian Parliament, "
-        "with 151 members each representing an electorate. Government is formed by the party "
-        "that holds a majority here. Members vote on legislation, and their attendance and "
-        "rebellion records reveal how closely they follow their party's line."
+        "151 seats. One per electorate. The party that holds the majority forms government. "
+        "We track how every member votes, how often they show up, and how often they fall in line. "
+        "Pick a name, or search your postcode."
     )
     search = st.text_input(
         "Search by name, electorate or postcode", key="reps_search",
