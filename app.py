@@ -1319,8 +1319,8 @@ def build_current_gov_tab():
 
         '<div style="font-size:14px;font-style:italic;line-height:1.6;opacity:0.6;'
         'margin-bottom:8px">'
-        'Pollygraph gives you the actual votes, the actual quotes, and the actual '
-        'track record, so you can walk into any conversation armed with facts, not vibes.</div>',
+        'Pollygraph gives you Aussie politician\'s actual votes, quotes, and conflicts of interest '
+        'so you can have factual conversations and make accurately informed decisions.</div>',
         unsafe_allow_html=True,
     )
 
