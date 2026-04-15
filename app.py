@@ -1005,108 +1005,105 @@ with tab_yourreps:
         "These are the people you can actually write to."
     )
 
-    lookup_method = st.radio(
-        "How would you like to find your reps?",
-        ["Postcode", "Street address (more precise)"],
-        horizontal=True,
-        key="yourreps_lookup_method",
-    )
-
     address_electorate = None
 
-    if lookup_method == "Postcode":
+    col_pc, col_addr = st.columns([1, 3])
+
+    with col_pc:
+        st.markdown("**Postcode**")
         postcode_input = st.text_input(
-            "Enter your postcode",
+            "Postcode",
             max_chars=4,
             placeholder="e.g. 3006",
             key="yourreps_postcode",
+            label_visibility="collapsed",
         )
-    else:
-        postcode_input = ""
+
+    with col_addr:
+        st.markdown("**Street address** *(more precise)*")
         address_input = st.text_input(
-            "Enter your street address",
+            "Street address",
             placeholder="e.g. 123 Collins Street, Melbourne VIC",
             key="yourreps_address",
+            label_visibility="collapsed",
         )
         st.caption(
-            "Pollygraph uses OpenStreetMap to convert your address to coordinates, then finds the "
-            "nearest AEC polling place to determine your electorate. Your address is not stored. "
-            "For an official confirmation, verify your electorate at "
-            "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
+            "Uses OpenStreetMap to find your nearest polling place. Your address is not stored. "
+            "Confirm at [electorate.aec.gov.au](https://electorate.aec.gov.au/)."
         )
 
-        if address_input and len(address_input.strip()) > 5:
-            @st.cache_data(ttl=3600, show_spinner=False)
-            def _geocode_address(address: str):
-                try:
-                    resp = _req_geo.get(
-                        "https://nominatim.openstreetmap.org/search",
-                        params={
-                            "q": f"{address}, Australia",
-                            "format": "json",
-                            "limit": 1,
-                            "countrycodes": "au",
-                        },
-                        headers={"User-Agent": "Pollygraph-AusPolitics/1.0"},
-                        timeout=10,
-                    )
-                    results = resp.json()
-                    if results:
-                        return float(results[0]["lat"]), float(results[0]["lon"])
-                except Exception:
-                    pass
-                return None, None
-
-            with st.spinner("Looking up your address…"):
-                addr_lat, addr_lon = _geocode_address(address_input.strip())
-
-            if addr_lat is not None:
-                places = query(
-                    "SELECT division, lat, lng, name, suburb FROM polling_places "
-                    "WHERE lat IS NOT NULL"
+    if address_input and len(address_input.strip()) > 5:
+        @st.cache_data(ttl=3600, show_spinner=False)
+        def _geocode_address(address: str):
+            try:
+                resp = _req_geo.get(
+                    "https://nominatim.openstreetmap.org/search",
+                    params={
+                        "q": f"{address}, Australia",
+                        "format": "json",
+                        "limit": 1,
+                        "countrycodes": "au",
+                    },
+                    headers={"User-Agent": "Pollygraph-AusPolitics/1.0"},
+                    timeout=10,
                 )
-                if not places.empty:
-                    places["dist_km"] = places.apply(
-                        lambda r: _haversine(addr_lat, addr_lon, r["lat"], r["lng"]),
-                        axis=1,
-                    )
-                    nearest = places.sort_values("dist_km").iloc[0]
-                    address_electorate = nearest["division"]
-                    dist_km = nearest["dist_km"]
+                results = resp.json()
+                if results:
+                    return float(results[0]["lat"]), float(results[0]["lon"])
+            except Exception:
+                pass
+            return None, None
 
-                    postcode_input = ""
-                    state_from_addr = query(
-                        "SELECT state FROM polling_places WHERE division = ? LIMIT 1",
-                        (address_electorate,)
-                    )
-                    addr_state = (
-                        state_from_addr.iloc[0]["state"]
-                        if not state_from_addr.empty else None
-                    )
+        with st.spinner("Looking up your address…"):
+            addr_lat, addr_lon = _geocode_address(address_input.strip())
 
-                    st.success(
-                        f"Your nearest polling place is **{nearest['name']}** "
-                        f"({nearest['suburb']}, {dist_km:.1f} km away) "
-                        f"→ electorate of **{address_electorate}**"
-                    )
-                    if dist_km > 10:
-                        st.warning(
-                            "The nearest polling place is quite far from the address you entered. "
-                            "The result may not be accurate — please confirm at "
-                            "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
-                        )
-                    st.markdown(
-                        '<a href="https://electorate.aec.gov.au/" target="_blank" style="'
-                        'display:inline-block;padding:8px 16px;background:#e94560;color:#fff;'
-                        'border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;'
-                        'margin:4px 0 12px 0">Confirm your electorate at AEC ↗</a>',
-                        unsafe_allow_html=True,
-                    )
-            elif address_input.strip():
-                st.error(
-                    "Could not find that address. Try including your suburb and state, "
-                    "e.g. \"123 Collins Street, Melbourne VIC\". Or use the postcode option."
+        if addr_lat is not None:
+            postcode_input = ""
+            places = query(
+                "SELECT division, lat, lng, name, suburb FROM polling_places "
+                "WHERE lat IS NOT NULL"
+            )
+            if not places.empty:
+                places["dist_km"] = places.apply(
+                    lambda r: _haversine(addr_lat, addr_lon, r["lat"], r["lng"]),
+                    axis=1,
                 )
+                nearest = places.sort_values("dist_km").iloc[0]
+                address_electorate = nearest["division"]
+                dist_km = nearest["dist_km"]
+
+                state_from_addr = query(
+                    "SELECT state FROM polling_places WHERE division = ? LIMIT 1",
+                    (address_electorate,)
+                )
+                addr_state = (
+                    state_from_addr.iloc[0]["state"]
+                    if not state_from_addr.empty else None
+                )
+
+                st.success(
+                    f"Your nearest polling place is **{nearest['name']}** "
+                    f"({nearest['suburb']}, {dist_km:.1f} km away) "
+                    f"→ electorate of **{address_electorate}**"
+                )
+                if dist_km > 10:
+                    st.warning(
+                        "The nearest polling place is quite far from the address you entered. "
+                        "The result may not be accurate — please confirm at "
+                        "[electorate.aec.gov.au](https://electorate.aec.gov.au/)."
+                    )
+                st.markdown(
+                    '<a href="https://electorate.aec.gov.au/" target="_blank" style="'
+                    'display:inline-block;padding:8px 16px;background:#e94560;color:#fff;'
+                    'border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;'
+                    'margin:4px 0 12px 0">Confirm your electorate at AEC ↗</a>',
+                    unsafe_allow_html=True,
+                )
+        elif address_input.strip():
+            st.error(
+                "Could not find that address. Try including your suburb and state, "
+                "e.g. \"123 Collins Street, Melbourne VIC\". Or use the postcode option."
+            )
 
     st.markdown("""
 **Three levels of government represent you:**
@@ -2598,7 +2595,7 @@ the system, making it harder to identify and challenge.
             f'border-radius:0 6px 6px 0">'
             f'<div style="font-size:16px;font-weight:700">'
             f'{b["short_name"] or b["title"]}{year_label}</div>'
-            f'<div style="font-size:12px;color:#888;margin-top:2px">'
+            f'<div style="font-size:12px;color:#000;margin-top:2px">'
             f'{b["title"]}</div>'
             f'<span style="display:inline-block;margin-top:4px;font-size:11px;'
             f'background:{colour};color:#fff;padding:1px 8px;border-radius:8px">'
@@ -2612,14 +2609,14 @@ the system, making it harder to identify and challenge.
         with col_says:
             st.markdown("**What it says it does**")
             st.markdown(
-                f'<div style="font-size:13px;color:#ccc;border-left:3px solid #27ae60;'
+                f'<div style="font-size:13px;color:#000;border-left:3px solid #27ae60;'
                 f'padding:6px 10px;margin:4px 0">{b["official_purpose"]}</div>',
                 unsafe_allow_html=True,
             )
         with col_does:
             st.markdown("**What it actually does**")
             st.markdown(
-                f'<div style="font-size:13px;color:#ccc;border-left:3px solid #e94560;'
+                f'<div style="font-size:13px;color:#000;border-left:3px solid #e94560;'
                 f'padding:6px 10px;margin:4px 0">{b["hidden_impact"]}</div>',
                 unsafe_allow_html=True,
             )
@@ -2636,7 +2633,7 @@ the system, making it harder to identify and challenge.
             if b.get("who_benefits"):
                 st.markdown("**Who benefits**")
                 st.markdown(
-                    f'<div style="font-size:13px;color:#27ae60;border-left:3px solid #27ae60;'
+                    f'<div style="font-size:13px;color:#000;border-left:3px solid #27ae60;'
                     f'padding:6px 10px;margin:4px 0">{b["who_benefits"]}</div>',
                     unsafe_allow_html=True,
                 )
@@ -2644,7 +2641,7 @@ the system, making it harder to identify and challenge.
             if b.get("who_loses"):
                 st.markdown("**Who loses**")
                 st.markdown(
-                    f'<div style="font-size:13px;color:#e94560;border-left:3px solid #e94560;'
+                    f'<div style="font-size:13px;color:#000;border-left:3px solid #e94560;'
                     f'padding:6px 10px;margin:4px 0">{b["who_loses"]}</div>',
                     unsafe_allow_html=True,
                 )
@@ -2653,7 +2650,7 @@ the system, making it harder to identify and challenge.
                 st.divider()
                 st.markdown("**Independent criticism**")
                 st.markdown(
-                    f'<div style="font-size:13px;color:#ccc;padding:4px 0">{b["criticism"]}</div>',
+                    f'<div style="font-size:13px;color:#000;padding:4px 0">{b["criticism"]}</div>',
                     unsafe_allow_html=True,
                 )
                 if b.get("criticism_source"):
@@ -2663,7 +2660,7 @@ the system, making it harder to identify and challenge.
                 st.divider()
                 st.markdown("**Government defence**")
                 st.markdown(
-                    f'<div style="font-size:13px;color:#aaa;font-style:italic;padding:4px 0">'
+                    f'<div style="font-size:13px;color:#000;font-style:italic;padding:4px 0">'
                     f'{b["defence"]}</div>',
                     unsafe_allow_html=True,
                 )

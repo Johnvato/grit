@@ -60,6 +60,11 @@ BILLS = [
             "Senator David Pocock, Grattan Institute, The Centre for Public Integrity, "
             "Voices of Indi, The Guardian, The Saturday Paper"
         ),
+        "criticism_urls": (
+            "PS News — independents criticise donation reform|https://psnews.com.au/major-party-stitch-up-independents-criticise-federal-donation-law-reform-move/149265/||"
+            "The Conversation — donation caps rushed through|https://www.theconversation.com/government-aims-to-pass-political-donation-and-spending-caps-within-a-fortnight-after-in-principle-deal-with-opposition-243708||"
+            "Grattan Institute — where the money came from|https://grattan.edu.au/news/election-2025-where-the-money-came-from/"
+        ),
         "defence": (
             "The government argued the bill represented the most significant donation reform in "
             "decades and that perfect should not be the enemy of good. The ALP said the branch "
@@ -117,6 +122,11 @@ BILLS = [
             "Professor Andrew Macintosh, Climate Analytics, The Australia Institute, "
             "Australian Conservation Foundation, The Guardian"
         ),
+        "criticism_urls": (
+            "The Conversation — carbon credits could blow up climate policy|https://theconversation.com/the-unsafe-safeguard-mechanism-how-carbon-credits-could-blow-up-australias-main-climate-policy-213874||"
+            "ABC News — research questions offset integrity|https://www.abc.net.au/news/2024-03-26/safeguard-mechanism-accu-challenge/103636382||"
+            "ABC News — insider blows whistle on offsets|https://www.abc.net.au/news/2022-03-24/insider-blows-whistle-on-greenhouse-gas-reduction-schemes/100933186"
+        ),
         "defence": (
             "Climate Change Minister Chris Bowen argued the mechanism represents the first "
             "legally binding emissions reduction obligation on heavy industry in Australian history "
@@ -168,6 +178,11 @@ BILLS = [
             "Climate Council, International Energy Agency, The Australia Institute, "
             "Greenpeace Australia Pacific, Michael West Media"
         ),
+        "criticism_urls": (
+            "Climate Council — Future Gas Strategy critique|https://www.climatecouncil.org.au/resources/a-future-gas-strategy-that-sends-us-back-to-the-future/||"
+            "Australia Institute — through the looking glass|https://australiainstitute.org.au/post/future-gas-strategy-takes-australians-through-the-looking-glass/||"
+            "IEEFA — questions over gas strategy|https://ieefa.org/resources/australian-government-has-questions-answer-over-future-gas-strategy"
+        ),
         "defence": (
             "Resources Minister Madeleine King argued gas is essential for energy security, "
             "manufacturing, and firming intermittent renewables. The government noted Australia's "
@@ -217,6 +232,10 @@ BILLS = [
             "pushed for mining to face equivalent scrutiny without success."
         ),
         "criticism_source": "The Australia Institute, Senate crossbench, ABC Rural",
+        "criticism_urls": (
+            "APH — Foreign Investment Bill digest|https://www.aph.gov.au/Parliamentary_Business/Bills_Legislation/bd/bd2324a/24bd047a||"
+            "DLA Piper — foreign investment reforms|https://www.dlapiper.com/en-au/insights/publications/2024/05/upcoming-reforms-to-australia-foreign-investment-regime-seeking-to-refocus-and-streamline-approvals"
+        ),
         "defence": (
             "Treasurer Jim Chalmers argued the reforms balanced national security with "
             "Australia's need for foreign investment in mining and critical minerals "
@@ -267,6 +286,10 @@ BILLS = [
         "criticism_source": (
             "Australian Medical Association, FCAI, Lung Foundation Australia, "
             "Doctors for the Environment"
+        ),
+        "criticism_urls": (
+            "ABC News — fuel standards eased explainer|https://abc.gov.au/news/2026-03-14/australian-fuel-standards-eased-explainer-what-is-dirty-fuel/106450074||"
+            "Petrolmate — dirty fuel reputation|https://petrolmate.com.au/blog/2026-01-10-australia-finally-ditches-dirty-fuel-reputation"
         ),
         "defence": (
             "The government argued the 2027 timeline was necessary to allow domestic refineries "
@@ -325,6 +348,10 @@ BILLS = [
             "Human Rights Law Centre, Digital Rights Watch, Electronic Frontiers Australia, "
             "Reset Australia, Professor Toby Walsh"
         ),
+        "criticism_urls": (
+            "HRLC — social media ban not the answer|https://hrlc.org.au/news/social-media-ban||"
+            "AHRC — social media ban explainer (PDF)|https://humanrights.gov.au/sites/default/files/2024-11/AHRC_Social-Media-Ban-Explainer.pdf"
+        ),
         "defence": (
             "Both ALP and Coalition argued the mental health of children must take priority "
             "and that platforms have failed to self-regulate. The government committed to "
@@ -354,6 +381,7 @@ def seed(clear_first: bool = True):
             key_provisions  TEXT,
             criticism       TEXT,
             criticism_source TEXT,
+            criticism_urls  TEXT,
             defence         TEXT,
             source_url      TEXT,
             added_date      TEXT
