@@ -1619,6 +1619,25 @@ after losing government in 2022. Key factors in their result:
             ],
         },
         {
+            "title": "Natural resources royalties",
+            "detail": (
+                "Australia is the world's largest exporter of iron ore, lithium, and LNG, yet "
+                "mining royalties are set by state governments and vary wildly — often at rates "
+                "well below international benchmarks. The federal government collects no resource "
+                "rent tax after the Minerals Resource Rent Tax was repealed in 2014 under pressure "
+                "from the mining lobby. Norway's sovereign wealth fund (built on oil royalties) "
+                "is worth over $1.7 trillion; Australia has no equivalent. Critics argue that "
+                "Australians are giving away their non-renewable inheritance while mining companies "
+                "report record profits and pay effective tax rates far below the headline 30%."
+            ),
+            "colour": "#d4ac0d",
+            "sources": [
+                ("The Australia Institute — mining royalties", "https://australiainstitute.org.au/report/resource-rents/"),
+                ("ABC News — how much do miners pay?", "https://www.abc.net.au/news/2023-02-09/mining-companies-tax-royalties-explained/101950638"),
+                ("Grattan Institute — resource taxation", "https://grattan.edu.au/report/digging-into-the-mining-tax/"),
+            ],
+        },
+        {
             "title": "Media ownership concentration",
             "detail": (
                 "Australia has one of the most concentrated media landscapes in the democratic world. "
