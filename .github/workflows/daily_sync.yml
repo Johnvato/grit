@@ -18,7 +18,9 @@ jobs:
           python-version: '3.13'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install feedparser beautifulsoup4 google-genai
 
       - name: Rebuild schema (idempotent)
         run: python build_schema.py
