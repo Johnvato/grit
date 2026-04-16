@@ -1277,11 +1277,11 @@ your roads, and your planning approvals are all state or local responsibilities.
         LOCAL_GOV_URLS = {
             "New South Wales": ("http://web.archive.org/web/20200311032644/https://www.olg.nsw.gov.au/find-my-council", "NSW — Find my council"),
             "Victoria": ("", "VIC — Find your council"),
-            "Queensland": ("http://web.archive.org/web/20201103162851/http://www.dlgrma.qld.gov.au/local-government-directory/", "QLD — Local government directory"),
+            "Queensland": ("", "QLD — Local government directory"),
             "South Australia": ("", "SA — Council directory"),
             "Western Australia": ("", "WA — LG directory"),
             "Tasmania": ("https://www.dpac.tas.gov.au/divisions/local_government", "TAS — Local government"),
-            "Australian Capital Territory": ("http://web.archive.org/web/20260302174123/https://www.act.gov.au/", "ACT — No separate local councils (ACT government handles local services)"),
+            "Australian Capital Territory": ("", "ACT — No separate local councils (ACT government handles local services)"),
             "Northern Territory": ("", "NT — Local government"),
         }
         lg = LOCAL_GOV_URLS.get(_yr_state)
