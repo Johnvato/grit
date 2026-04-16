@@ -1,0 +1,39 @@
+name: Controversy Content Refresh
+
+on:
+  schedule:
+    - cron: '0 14 */3 * *'  # Every 3 days at 2pm UTC (midnight AEST)
+  workflow_dispatch:          # Manual trigger from GitHub UI
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install google-genai
+
+      - name: Rebuild schema (idempotent)
+        run: python build_schema.py
+
+      - name: Run controversy refresh
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python -m scrapers.controversy_refresh
+
+      - name: Commit updated database
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'bot@noreply.github.com'
+          git add grit_cache.db
+          git commit -m "Controversy refresh $(date -u +%Y-%m-%d)" || exit 0
+          git push

@@ -352,7 +352,7 @@ def ai_analysis_section(politician_id: int):
     pos_score = flags_data.get("positive_score", 0)
     source_quality = flags_data.get("source_quality", "")
 
-    st.markdown("**AI Analysis** *(updated nightly)*")
+    st.markdown("**AI Analysis** *(updated every few days)*")
     st.markdown(
         bipolar_bar(int(a["heat_score"] or 0), pos_score),
         unsafe_allow_html=True,
