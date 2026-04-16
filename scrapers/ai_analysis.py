@@ -69,12 +69,12 @@ def get_gemini_key() -> str | None:
         return None
 
 
-# Cycle through models — each has its own free-tier daily quota
+# Free-tier quota is ~20 RPD per model.  flash-lite first (cheapest),
+# then flash-latest (separate quota pool), then flash as last resort.
 MODELS = [
-    "gemini-2.5-flash",
     "gemini-2.5-flash-lite",
-    "gemini-flash-lite-latest",
     "gemini-flash-latest",
+    "gemini-2.5-flash",
 ]
 _model_idx = 0
 

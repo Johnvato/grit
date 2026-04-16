@@ -2,8 +2,8 @@ name: Controversy Content Refresh
 
 on:
   schedule:
-    - cron: '0 14 */3 * *'  # Every 3 days at 2pm UTC (midnight AEST)
-  workflow_dispatch:          # Manual trigger from GitHub UI
+    - cron: '0 18 * * *'  # Daily at 6pm UTC (4am AEST), 5h after daily sync
+  workflow_dispatch:       # Manual trigger from GitHub UI
 
 jobs:
   refresh:
@@ -25,10 +25,10 @@ jobs:
       - name: Rebuild schema (idempotent)
         run: python build_schema.py
 
-      - name: Run controversy refresh
+      - name: Run controversy refresh (today's batch)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python -m scrapers.controversy_refresh
+        run: python -u -m scrapers.controversy_refresh
 
       - name: Commit updated database
         run: |
