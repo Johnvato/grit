@@ -1529,7 +1529,6 @@ def build_current_gov_tab():
             "sources": [
                 ("ABC News — who owns Australia's media", "https://www.abc.net.au/news/2021-03-03/who-owns-australian-media/13196164"),
                 ("The Conversation — media concentration risks", "https://theconversation.com/australian-media-concentration-is-among-the-worst-in-the-world-107599"),
-                ("ACCC — Digital Platforms Inquiry final report", "https://www.accc.gov.au/inquiries-and-consultations/digital-platform-services-inquiry-2020-25/march-2025-final-report"),
             ],
         },
     ]
