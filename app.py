@@ -1236,13 +1236,13 @@ your roads, and your planning approvals are all state or local responsibilities.
         # ── State government ───────────────────────────────────────────────
         STATE_PARL_URLS = {
             "New South Wales": "https://www.parliament.nsw.gov.au/members",
-            "Victoria": "https://www.parliament.vic.gov.au/members",
+            "Victoria": "http://web.archive.org/web/20260318005538/https://www.parliament.vic.gov.au/members/",
             "Queensland": "https://www.parliament.qld.gov.au/Members/Current-Members",
             "South Australia": "https://www.parliament.sa.gov.au/Members",
             "Western Australia": "https://www.parliament.wa.gov.au/parliament/memblist.nsf",
-            "Tasmania": "https://www.parliament.tas.gov.au/Members",
-            "Australian Capital Territory": "https://www.parliament.act.gov.au/Members",
-            "Northern Territory": "https://parliament.nt.gov.au/Members",
+            "Tasmania": "",
+            "Australian Capital Territory": "http://web.archive.org/web/20251115031821/https://www.parliament.act.gov.au/members",
+            "Northern Territory": "",
         }
         st.markdown("### State / Territory Government")
         st.caption(
@@ -1275,14 +1275,14 @@ your roads, and your planning approvals are all state or local responsibilities.
         )
 
         LOCAL_GOV_URLS = {
-            "New South Wales": ("https://www.olg.nsw.gov.au/find-my-council/", "NSW — Find my council"),
-            "Victoria": ("https://www.localgovernment.vic.gov.au/find-your-council", "VIC — Find your council"),
-            "Queensland": ("https://www.dlgrma.qld.gov.au/local-government-directory", "QLD — Local government directory"),
-            "South Australia": ("https://www.lga.sa.gov.au/about/councils", "SA — Council directory"),
-            "Western Australia": ("https://www.dlgsc.wa.gov.au/local-government/local-governments/local-government-directory", "WA — LG directory"),
+            "New South Wales": ("http://web.archive.org/web/20200311032644/https://www.olg.nsw.gov.au/find-my-council", "NSW — Find my council"),
+            "Victoria": ("", "VIC — Find your council"),
+            "Queensland": ("http://web.archive.org/web/20201103162851/http://www.dlgrma.qld.gov.au/local-government-directory/", "QLD — Local government directory"),
+            "South Australia": ("", "SA — Council directory"),
+            "Western Australia": ("", "WA — LG directory"),
             "Tasmania": ("https://www.dpac.tas.gov.au/divisions/local_government", "TAS — Local government"),
-            "Australian Capital Territory": ("https://www.act.gov.au/", "ACT — No separate local councils (ACT government handles local services)"),
-            "Northern Territory": ("https://www.dlghcd.nt.gov.au/local-government", "NT — Local government"),
+            "Australian Capital Territory": ("http://web.archive.org/web/20260302174123/https://www.act.gov.au/", "ACT — No separate local councils (ACT government handles local services)"),
+            "Northern Territory": ("", "NT — Local government"),
         }
         lg = LOCAL_GOV_URLS.get(_yr_state)
         if lg:
