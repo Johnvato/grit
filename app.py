@@ -1449,8 +1449,6 @@ def build_current_gov_tab():
             "colour": "#f5a623",
             "sources": [
                 ("ABC News — housing crisis explained", "https://www.abc.net.au/news/2023-09-14/housing-crisis-australia-explained/102846108"),
-                ("Grattan Institute — more homes, better cities", "https://grattan.edu.au/report/more-homes-better-cities/"),
-                ("Grattan Institute — to fix the economy, fix housing", "https://grattan.edu.au/news/to-fix-the-economy-fix-housing/"),
             ],
         },
         {
@@ -1514,7 +1512,6 @@ def build_current_gov_tab():
             "sources": [
                 ("Australia Institute — students pay 4x more than gas companies", "https://australiainstitute.org.au/post/in-2023-24-australians-paid-more-than-4-times-on-hecs-help-than-gas-companies-did-on-prrt/"),
                 ("ABC News — Qld coal royalties under spotlight", "https://www.abc.net.au/news/2025-09-28/qld-coal-mine-royalties-regime-questioned-after-job-cuts/105818488"),
-                ("Grattan Institute — mining fuel tax credits", "https://grattan.edu.au/news/minerals-council-is-wrong-about-fuel-tax-credits/"),
             ],
         },
         {
