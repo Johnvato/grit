@@ -1510,7 +1510,6 @@ def build_current_gov_tab():
             ),
             "colour": "#d4ac0d",
             "sources": [
-                ("Australia Institute — students pay 4x more than gas companies", "https://australiainstitute.org.au/post/in-2023-24-australians-paid-more-than-4-times-on-hecs-help-than-gas-companies-did-on-prrt/"),
                 ("ABC News — Qld coal royalties under spotlight", "https://www.abc.net.au/news/2025-09-28/qld-coal-mine-royalties-regime-questioned-after-job-cuts/105818488"),
             ],
         },
