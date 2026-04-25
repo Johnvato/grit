@@ -1275,7 +1275,7 @@ your roads, and your planning approvals are all state or local responsibilities.
         )
 
         LOCAL_GOV_URLS = {
-            "New South Wales": ("http://web.archive.org/web/20200311032644/https://www.olg.nsw.gov.au/find-my-council", "NSW — Find my council"),
+            "New South Wales": ("", "NSW — Find my council"),
             "Victoria": ("", "VIC — Find your council"),
             "Queensland": ("", "QLD — Local government directory"),
             "South Australia": ("", "SA — Council directory"),
