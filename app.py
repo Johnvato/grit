@@ -1433,22 +1433,8 @@ def build_current_gov_tab():
             ),
             "colour": "#e94560",
             "sources": [
-                ("ABC News — what is AUKUS?", "https://www.abc.net.au/news/2023-03-14/what-is-aukus-submarine-deal-details-announced/102091510"),
-                ("ABC News — inside the $8b Perth sub base", "https://www.abc.net.au/news/2025-09-12/inside-the-aukus-plan-to-station-american-subs-near-perth/105763818"),
+                ("ABC News — what is AUKUS?", "http://web.archive.org/web/20260423050527/https://www.abc.net.au/news/2023-03-14/what-is-aukus-submarine-deal-details-announced/102091510"),
                 ("BBC — AUKUS deal explained", "https://www.bbc.com/news/articles/cgr589k5yleo"),
-            ],
-        },
-        {
-            "title": "Cost of living & housing",
-            "detail": (
-                "Rising rents, mortgage stress, and grocery prices have defined voter sentiment. "
-                "The government's response — including energy bill relief, rental assistance, and "
-                "the Housing Australia Future Fund — has been criticised as insufficient by "
-                "housing advocates and too interventionist by the opposition."
-            ),
-            "colour": "#f5a623",
-            "sources": [
-                ("ABC News — housing crisis explained", "https://www.abc.net.au/news/2023-09-14/housing-crisis-australia-explained/102846108"),
             ],
         },
         {
@@ -1461,8 +1447,6 @@ def build_current_gov_tab():
             ),
             "colour": "#2980b9",
             "sources": [
-                ("ABC News — renewables pass 50% milestone", "https://www.abc.net.au/news/2026-01-29/australia-hits-power-demand-record-as-renewables-pass-50pc/106280246"),
-                ("ABC News — emissions progress to 2030", "https://abc.net.au/news/2025-11-29/record-drop-in-australias-emissions/106074296"),
                 ("AEMO — Draft 2026 Integrated System Plan", "https://aemo.com.au/energy-systems/major-publications/integrated-system-plan-isp/2026-integrated-system-plan-isp"),
             ],
         },
@@ -1476,7 +1460,6 @@ def build_current_gov_tab():
             ),
             "colour": "#8e24aa",
             "sources": [
-                ("ABC News — political donations explained", "https://www.abc.net.au/news/2022-02-01/political-donations-explained-who-gives-what/100793498"),
                 ("Transparency International — integrity pack 2025", "https://transparency.org.au/integrity-pack/"),
                 ("Transparency International — a better kind of politics", "https://transparency.org.au/better-politics/"),
             ],
