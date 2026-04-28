@@ -1235,7 +1235,7 @@ your roads, and your planning approvals are all state or local responsibilities.
 
         # ── State government ───────────────────────────────────────────────
         STATE_PARL_URLS = {
-            "New South Wales": "https://www.parliament.nsw.gov.au/members",
+            "New South Wales": "",
             "Victoria": "",
             "Queensland": "https://www.parliament.qld.gov.au/Members/Current-Members",
             "South Australia": "https://www.parliament.sa.gov.au/Members",
