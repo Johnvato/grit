@@ -1506,7 +1506,6 @@ def build_current_gov_tab():
             ),
             "colour": "#27ae60",
             "sources": [
-                ("ABC News — who owns Australia's media", "https://www.abc.net.au/news/2021-03-03/who-owns-australian-media/13196164"),
                 ("The Conversation — media concentration risks", "https://theconversation.com/australian-media-concentration-is-among-the-worst-in-the-world-107599"),
             ],
         },
