@@ -1237,9 +1237,9 @@ your roads, and your planning approvals are all state or local responsibilities.
         STATE_PARL_URLS = {
             "New South Wales": "",
             "Victoria": "",
-            "Queensland": "https://www.parliament.qld.gov.au/Members/Current-Members",
+            "Queensland": "",
             "South Australia": "https://www.parliament.sa.gov.au/Members",
-            "Western Australia": "https://www.parliament.wa.gov.au/parliament/memblist.nsf",
+            "Western Australia": "",
             "Tasmania": "",
             "Australian Capital Territory": "http://web.archive.org/web/20251115031821/https://www.parliament.act.gov.au/members",
             "Northern Territory": "",
