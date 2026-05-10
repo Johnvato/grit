@@ -1476,7 +1476,6 @@ def build_current_gov_tab():
             "sources": [
                 ("ABC News — record migration explained", "https://www.abc.net.au/news/2023-12-15/net-overseas-migration-record-high-explained/103233616"),
                 ("ABC News — migration 'surge' talk overblown", "https://www.abc.net.au/news/2025-03-30/migration-already-falling-despite-election-debate-over-surge/105111118"),
-                ("Lowy Institute — immigration attitudes", "https://www.lowyinstitute.org/publications/lowy-institute-poll-2024"),
             ],
         },
         {
