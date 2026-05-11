@@ -1241,7 +1241,7 @@ your roads, and your planning approvals are all state or local responsibilities.
             "South Australia": "https://www.parliament.sa.gov.au/Members",
             "Western Australia": "",
             "Tasmania": "",
-            "Australian Capital Territory": "http://web.archive.org/web/20251115031821/https://www.parliament.act.gov.au/members",
+            "Australian Capital Territory": "",
             "Northern Territory": "",
         }
         st.markdown("### State / Territory Government")
@@ -1433,7 +1433,6 @@ def build_current_gov_tab():
             ),
             "colour": "#e94560",
             "sources": [
-                ("ABC News — what is AUKUS?", "http://web.archive.org/web/20260423050527/https://www.abc.net.au/news/2023-03-14/what-is-aukus-submarine-deal-details-announced/102091510"),
                 ("BBC — AUKUS deal explained", "https://www.bbc.com/news/articles/cgr589k5yleo"),
             ],
         },
