@@ -1459,8 +1459,7 @@ def build_current_gov_tab():
             ),
             "colour": "#8e24aa",
             "sources": [
-                ("Transparency International — integrity pack 2025", "https://transparency.org.au/integrity-pack/"),
-                ("Transparency International — a better kind of politics", "https://transparency.org.au/better-politics/"),
+                ("Transparency International — integrity pack 2025", "http://web.archive.org/web/20231002221045/https://transparency.org.au/integrity-pack/"),
             ],
         },
         {
