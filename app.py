@@ -1450,19 +1450,6 @@ def build_current_gov_tab():
             ],
         },
         {
-            "title": "Political donations & lobbying",
-            "detail": (
-                "Despite promises of transparency, donation disclosure thresholds remain among the "
-                "highest in the OECD ($16,900 federally). Both major parties continue to receive "
-                "significant funding from mining, property, and gambling industries. The revolving "
-                "door between politics and lobbying (see Revolving Door tab) remains largely unregulated."
-            ),
-            "colour": "#8e24aa",
-            "sources": [
-                ("Transparency International — integrity pack 2025", "http://web.archive.org/web/20231002221045/https://transparency.org.au/integrity-pack/"),
-            ],
-        },
-        {
             "title": "Immigration & population",
             "detail": (
                 "Record net migration levels (over 500,000 in 2023) have fuelled debate about "
