@@ -1280,7 +1280,7 @@ your roads, and your planning approvals are all state or local responsibilities.
             "Queensland": ("", "QLD — Local government directory"),
             "South Australia": ("", "SA — Council directory"),
             "Western Australia": ("", "WA — LG directory"),
-            "Tasmania": ("https://www.dpac.tas.gov.au/divisions/local_government", "TAS — Local government"),
+            "Tasmania": ("http://web.archive.org/web/20260314053012/https://www.dpac.tas.gov.au/divisions/local_government", "TAS — Local government"),
             "Australian Capital Territory": ("", "ACT — No separate local councils (ACT government handles local services)"),
             "Northern Territory": ("", "NT — Local government"),
         }
