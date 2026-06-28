@@ -1459,8 +1459,7 @@ def build_current_gov_tab():
             ),
             "colour": "#e67e22",
             "sources": [
-                ("ABC News — record migration explained", "https://www.abc.net.au/news/2023-12-15/net-overseas-migration-record-high-explained/103233616"),
-                ("ABC News — migration 'surge' talk overblown", "https://www.abc.net.au/news/2025-03-30/migration-already-falling-despite-election-debate-over-surge/105111118"),
+                ("ABC News — migration 'surge' talk overblown", "http://web.archive.org/web/20260214003129/https://www.abc.net.au/news/2025-03-30/migration-already-falling-despite-election-debate-over-surge/105111118"),
             ],
         },
         {
@@ -1477,7 +1476,7 @@ def build_current_gov_tab():
             ),
             "colour": "#d4ac0d",
             "sources": [
-                ("ABC News — Qld coal royalties under spotlight", "https://www.abc.net.au/news/2025-09-28/qld-coal-mine-royalties-regime-questioned-after-job-cuts/105818488"),
+                ("ABC News — Qld coal royalties under spotlight", "http://web.archive.org/web/20260414151150/https://www.abc.net.au/news/2025-09-28/qld-coal-mine-royalties-regime-questioned-after-job-cuts/105818488"),
             ],
         },
         {
