@@ -1450,36 +1450,6 @@ def build_current_gov_tab():
             ],
         },
         {
-            "title": "Immigration & population",
-            "detail": (
-                "Record net migration levels (over 500,000 in 2023) have fuelled debate about "
-                "infrastructure, housing supply, and wage growth. The government has since tightened "
-                "visa settings, but population pressures — particularly in Sydney and Melbourne — "
-                "remain a political flashpoint."
-            ),
-            "colour": "#e67e22",
-            "sources": [
-                ("ABC News — migration 'surge' talk overblown", "http://web.archive.org/web/20260214003129/https://www.abc.net.au/news/2025-03-30/migration-already-falling-despite-election-debate-over-surge/105111118"),
-            ],
-        },
-        {
-            "title": "Natural resources royalties",
-            "detail": (
-                "Australia is the world's largest exporter of iron ore, lithium, and LNG, yet "
-                "mining royalties are set by state governments and vary wildly — often at rates "
-                "well below international benchmarks. The federal government collects no resource "
-                "rent tax after the Minerals Resource Rent Tax was repealed in 2014 under pressure "
-                "from the mining lobby. Norway's sovereign wealth fund (built on oil royalties) "
-                "is worth over $1.7 trillion; Australia has no equivalent. Critics argue that "
-                "Australians are giving away their non-renewable inheritance while mining companies "
-                "report record profits and pay effective tax rates far below the headline 30%."
-            ),
-            "colour": "#d4ac0d",
-            "sources": [
-                ("ABC News — Qld coal royalties under spotlight", "http://web.archive.org/web/20260414151150/https://www.abc.net.au/news/2025-09-28/qld-coal-mine-royalties-regime-questioned-after-job-cuts/105818488"),
-            ],
-        },
-        {
             "title": "Media ownership concentration",
             "detail": (
                 "Australia has one of the most concentrated media landscapes in the democratic world. "
